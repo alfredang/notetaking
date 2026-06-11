@@ -15,9 +15,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select latest Xcode
-        run: sudo xcode-select -switch /Applications/Xcode_16.2.app
-
       - name: Show versions
         run: |
           xcodebuild -version
@@ -29,14 +26,17 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
+      # Build for a generic iOS device with signing disabled. This compiles all
+      # Swift + assets without requiring a specific installed simulator runtime.
       - name: Build
         run: |
           set -o pipefail
           xcodebuild \
             -project NotePadApp.xcodeproj \
             -scheme NotePadApp \
-            -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
+            -destination 'generic/platform=iOS' \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
             build
