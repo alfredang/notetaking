@@ -38,7 +38,7 @@ enum ToolDefaults {
 
     /// Standard color palette, per spec.
     static let palette: [RGBAColor] = [
-        RGBAColor(.black),
+        .black,
         RGBAColor(red: 0.0, green: 0.48, blue: 1.0),   // Blue
         RGBAColor(red: 0.96, green: 0.26, blue: 0.21),  // Red
         RGBAColor(red: 0.30, green: 0.69, blue: 0.31),  // Green
