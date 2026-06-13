@@ -384,14 +384,15 @@ struct CanvasContainerView: UIViewRepresentable {
 
         /// Swiping up past the end of the last page appends a new blank page
         /// (continuous, GoodNotes-style paging).
-        func scrollViewDidScroll(_ scrollView: UIScrollView) {
-            let bottom = bottomOverscroll(scrollView)
-            if bottom > 50 { appendPageOnce() }
-            else if bottom < 12 { requestedNewPage = false }
+        func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+            // One page per drag gesture: only re-arm when a new drag starts.
+            requestedNewPage = false
+            requestedNewPageTop = false
+        }
 
-            let top = topOverscroll(scrollView)
-            if top > 50 { prependPageOnce() }
-            else if top < 12 { requestedNewPageTop = false }
+        func scrollViewDidScroll(_ scrollView: UIScrollView) {
+            if bottomOverscroll(scrollView) > 50 { appendPageOnce() }
+            if topOverscroll(scrollView) > 50 { prependPageOnce() }
         }
 
         func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {

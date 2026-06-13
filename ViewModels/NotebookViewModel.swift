@@ -34,18 +34,33 @@ final class NotebookViewModel {
     // MARK: - Page actions
 
     func addPageAtEnd() {
-        perform { try repository.addPage(to: notebook, at: nil) }
+        addPage(at: nil, style: pages.last?.paperStyle ?? notebook.paperStyle)
         selectedPageIndex = pages.count - 1
     }
 
     func insertPage(before index: Int) {
-        perform { try repository.addPage(to: notebook, at: index) }
+        let style = pages.indices.contains(index) ? pages[index].paperStyle : notebook.paperStyle
+        addPage(at: index, style: style)
         selectedPageIndex = index
     }
 
     func insertPage(after index: Int) {
-        perform { try repository.addPage(to: notebook, at: index + 1) }
+        let style = pages.indices.contains(index) ? pages[index].paperStyle : notebook.paperStyle
+        addPage(at: index + 1, style: style)
         selectedPageIndex = min(index + 1, pages.count - 1)
+    }
+
+    /// Adds a page at `index` (nil = end), inheriting the given template so a new
+    /// page always matches its neighbour (blackboard stays blackboard, etc.).
+    private func addPage(at index: Int?, style: PaperStyle) {
+        do {
+            let page = try repository.addPage(to: notebook, at: index)
+            page.paperStyle = style
+            try repository.save()
+            bump()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     func duplicate(_ page: Page) {
