@@ -34,7 +34,9 @@ final class AutoSaveService {
         guard let page else { return }
         indexTask?.cancel()
         indexTask = Task { [weak self, weak page] in
-            try? await Task.sleep(for: .seconds(1.5))
+            // Long idle delay so the (main-thread) page render for OCR never
+            // fires while the user is actively drawing or tapping the toolbar.
+            try? await Task.sleep(for: .seconds(4))
             if Task.isCancelled { return }
             guard let self, let page else { return }
             let png = PageRenderer.image(for: page, scale: 1).pngData() ?? Data()
