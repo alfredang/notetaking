@@ -12,8 +12,6 @@ struct NotebookView: View {
     @State private var controller = CanvasController()
     @State private var autoSave: AutoSaveService
     @State private var showSidebar = false
-    @State private var showClearConfirm = false
-    @State private var showClearAllConfirm = false
     @State private var showAudioNotes = false
     @State private var showPDFImporter = false
     @State private var exportItem: ExportRequest?
@@ -50,24 +48,13 @@ struct NotebookView: View {
         .onChange(of: notebookVM.selectedPageIndex) { _, newValue in
             controller.scrollToPage(newValue)
         }
+        .onAppear {
+            // Swiping up past the last page appends a new blank page.
+            controller.requestNewPageAtEnd = {
+                notebookVM.addPageAtEnd()
+            }
+        }
         .onDisappear { autoSave.saveNow() }
-        .confirmationDialog("Clear this page?", isPresented: $showClearConfirm, titleVisibility: .visible) {
-            Button("Clear Page", role: .destructive) {
-                controller.clearVisiblePage()
-                notebookVM.bump()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This removes all strokes and shapes on the page you're viewing.")
-        }
-        .confirmationDialog("Clear all pages?", isPresented: $showClearAllConfirm, titleVisibility: .visible) {
-            Button("Clear All Pages", role: .destructive) {
-                notebookVM.clearAllPages()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This removes all strokes and shapes on every page in this notebook.")
-        }
         .sheet(item: $exportItem) { request in
             ExportSheet(request: request)
         }
@@ -154,10 +141,13 @@ struct NotebookView: View {
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button(role: .destructive) {
-                    showClearConfirm = true
+                    // Act immediately — presenting a dialog from a Menu is unreliable.
+                    controller.clearVisiblePage()
+                    notebookVM.bump()
                 } label: { Label("Clear Page", systemImage: "trash.slash") }
                 Button(role: .destructive) {
-                    showClearAllConfirm = true
+                    controller.clearAllPages()
+                    notebookVM.bump()
                 } label: { Label("Clear All Pages", systemImage: "trash") }
             } label: {
                 Image(systemName: "trash.slash")

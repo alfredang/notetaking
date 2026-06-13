@@ -21,4 +21,8 @@ final class CanvasController {
     /// Pushes the editor's current tool/color/width to every canvas immediately
     /// (called when the toolbar changes a setting, so it takes effect at once).
     var applyTool: () -> Void = {}
+    /// Clears strokes and shapes on every page (live canvases + model).
+    var clearAllPages: () -> Void = {}
+    /// Asks the host to append a new blank page at the end (swipe-up past bottom).
+    var requestNewPageAtEnd: () -> Void = {}
 }

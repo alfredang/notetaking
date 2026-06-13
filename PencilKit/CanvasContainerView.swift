@@ -78,6 +78,7 @@ struct CanvasContainerView: UIViewRepresentable {
         private var pageViews: [PageContainerView] = []
         private var pageForCanvas: [ObjectIdentifier: Page] = [:]
         private var didInitialFit = false
+        private var requestedNewPage = false
 
         init(editor: EditorViewModel, autoSave: AutoSaveService, controller: CanvasController) {
             self.editor = editor
@@ -123,19 +124,30 @@ struct CanvasContainerView: UIViewRepresentable {
             }
             controller.currentVisiblePage = { [weak self] in self?.mostVisiblePageView()?.page }
             controller.clearVisiblePage = { [weak self] in self?.clearVisiblePage() }
+            controller.clearAllPages = { [weak self] in self?.clearAllPages() }
             controller.applyTool = { [weak self] in self?.applyTool() }
         }
 
         /// Clears the on-screen canvas + overlay for the visible page and persists it.
         private func clearVisiblePage() {
             guard let pv = mostVisiblePageView() else { return }
+            clear(pv)
+            autoSave.saveNow()
+        }
+
+        /// Clears every page's on-screen canvas + overlay and persists.
+        private func clearAllPages() {
+            for pv in pageViews { clear(pv) }
+            autoSave.saveNow()
+        }
+
+        private func clear(_ pv: PageContainerView) {
             pv.canvas.drawing = PKDrawing()
             pv.canvas.undoManager?.removeAllActions()
             pv.overlay.items = []
             pv.page.drawingData = Data()
             pv.page.shapesData = Data()
             pv.page.touch()
-            autoSave.saveNow()
         }
 
         /// Zooms so the page fills the editor's full width the first time it lays
@@ -224,6 +236,19 @@ struct CanvasContainerView: UIViewRepresentable {
 
         func scrollViewDidZoom(_ scrollView: UIScrollView) {
             editor.zoomScale = scrollView.zoomScale
+        }
+
+        /// Swiping up past the end of the last page appends a new blank page
+        /// (continuous, GoodNotes-style paging).
+        func scrollViewDidScroll(_ scrollView: UIScrollView) {
+            guard scrollView.contentSize.height > scrollView.bounds.height else { return }
+            let overscroll = scrollView.contentOffset.y + scrollView.bounds.height - scrollView.contentSize.height
+            if overscroll > 130, !requestedNewPage {
+                requestedNewPage = true
+                controller.requestNewPageAtEnd()
+            } else if overscroll < 30 {
+                requestedNewPage = false
+            }
         }
 
         // MARK: UIPencilInteractionDelegate
