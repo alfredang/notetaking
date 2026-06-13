@@ -21,6 +21,8 @@ struct NotebookCard: View {
                     .softShadow()
             }
             .buttonStyle(.plain)
+            .hoverEffect(.lift)
+            .accessibilityLabel("Open \(notebook.title)")
 
             if isRenaming {
                 TextField("Name", text: $draftTitle, onCommit: commitRename)

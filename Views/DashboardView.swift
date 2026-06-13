@@ -116,6 +116,7 @@ struct DashboardView: View {
             } label: {
                 Label("Settings", systemImage: "gearshape")
             }
+            .keyboardShortcut(",", modifiers: .command)
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
@@ -139,6 +140,7 @@ struct DashboardView: View {
             } label: {
                 Label("New Notebook", systemImage: "plus")
             }
+            .keyboardShortcut("n", modifiers: .command)
         }
     }
 

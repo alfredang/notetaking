@@ -57,6 +57,11 @@ struct NotebookView: View {
                 notebookVM.addPageAtEnd()
             }
             editorVM.allowsFingerDrawing = allowsFingerDrawing
+            // Default ink to the notebook's template so it's visible (white
+            // chalk on a blackboard, black on white paper).
+            let ink = notebookVM.paperStyle.defaultInkColor
+            editorVM.penColor = ink
+            editorVM.shapeStrokeColor = ink
         }
         .onChange(of: allowsFingerDrawing) { _, newValue in
             editorVM.allowsFingerDrawing = newValue
@@ -87,6 +92,7 @@ struct NotebookView: View {
                 notebookVM.setPaperStyle(newStyle)
                 controller.reloadAllPages()
                 editorVM.penColor = newStyle.defaultInkColor
+                editorVM.shapeStrokeColor = newStyle.defaultInkColor
             }
         )
     }
@@ -99,12 +105,14 @@ struct NotebookView: View {
             } label: {
                 Image(systemName: "sidebar.left")
             }
+            .accessibilityLabel("Toggle pages sidebar")
         }
         ToolbarItem(placement: .topBarTrailing) {
             Toggle(isOn: $allowsFingerDrawing) {
                 Image(systemName: "hand.draw")
             }
             .toggleStyle(.button)
+            .accessibilityLabel("Finger drawing")
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
@@ -118,6 +126,7 @@ struct NotebookView: View {
             } label: {
                 Image(systemName: "rectangle.expand.vertical")
             }
+            .accessibilityLabel("Page size")
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
@@ -131,6 +140,7 @@ struct NotebookView: View {
             } label: {
                 Image(systemName: "square.grid.2x2")
             }
+            .accessibilityLabel("Page template")
         }
         ToolbarItem(placement: .topBarTrailing) {
             Button {
@@ -138,6 +148,7 @@ struct NotebookView: View {
             } label: {
                 Image(systemName: "doc.badge.plus")
             }
+            .accessibilityLabel("Import PDF")
         }
         ToolbarItem(placement: .topBarTrailing) {
             Button {
@@ -145,6 +156,7 @@ struct NotebookView: View {
             } label: {
                 Image(systemName: "waveform")
             }
+            .accessibilityLabel("Audio notes")
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
@@ -160,6 +172,7 @@ struct NotebookView: View {
             } label: {
                 Image(systemName: "trash.slash")
             }
+            .accessibilityLabel("Clear")
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
@@ -176,6 +189,7 @@ struct NotebookView: View {
             } label: {
                 Image(systemName: "square.and.arrow.up")
             }
+            .accessibilityLabel("Export")
         }
     }
 }

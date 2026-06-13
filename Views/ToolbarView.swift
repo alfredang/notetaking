@@ -55,6 +55,22 @@ struct ToolbarView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .hoverEffect(.highlight)
+        .accessibilityLabel(Self.toolName(tool))
+        .accessibilityAddTraits(isActive ? [.isSelected] : [])
+    }
+
+    private static func toolName(_ tool: EditorTool) -> String {
+        switch tool {
+        case .pen: "Pen"
+        case .highlighter: "Highlighter"
+        case .eraserPixel: "Eraser"
+        case .eraserObject: "Object eraser"
+        case .selection: "Lasso select"
+        case .shape(.stickyNote): "Sticky note"
+        case .shape: "Shape"
+        case .flowchart: "Flowchart"
+        }
     }
 
     private var shapeMenu: some View {
@@ -68,6 +84,7 @@ struct ToolbarView: View {
         } label: {
             menuLabel("square.on.circle", active: isShapeActive)
         }
+        .accessibilityLabel("Shapes")
     }
 
     private var flowchartMenu: some View {
@@ -79,6 +96,7 @@ struct ToolbarView: View {
         } label: {
             menuLabel("flowchart", active: isFlowchartActive)
         }
+        .accessibilityLabel("Flowchart")
     }
 
     private func shapeItem(_ title: String, _ kind: ShapeKind) -> some View {
@@ -95,6 +113,7 @@ struct ToolbarView: View {
             .foregroundStyle(active ? Color.accentColor : Color.primary)
             .clipShape(RoundedRectangle(cornerRadius: 9))
             .contentShape(Rectangle())
+            .hoverEffect(.highlight)
     }
 
     private var isShapeActive: Bool {
@@ -138,6 +157,8 @@ struct ToolbarView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .hoverEffect(.highlight)
+        .accessibilityLabel("Color")
         .popover(isPresented: $showColorPopover) {
             ColorPalettePopover(selection: selection)
                 .presentationCompactAdaptation(.popover)
@@ -170,6 +191,8 @@ struct ToolbarView: View {
             .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
             .contentShape(Rectangle())
         }
+        .hoverEffect(.highlight)
+        .accessibilityLabel("Stroke width")
     }
 
     // MARK: - History
@@ -180,10 +203,16 @@ struct ToolbarView: View {
                 Image(systemName: "arrow.uturn.backward").frame(width: 36, height: 34).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .hoverEffect(.highlight)
+            .accessibilityLabel("Undo")
+            .keyboardShortcut("z", modifiers: .command)
             Button { controller.redo() } label: {
                 Image(systemName: "arrow.uturn.forward").frame(width: 36, height: 34).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .hoverEffect(.highlight)
+            .accessibilityLabel("Redo")
+            .keyboardShortcut("z", modifiers: [.command, .shift])
         }
     }
 }
