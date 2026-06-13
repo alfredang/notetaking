@@ -50,6 +50,10 @@ final class PageContainerView: UIView {
         canvas.backgroundColor = .clear
         canvas.isOpaque = false
         canvas.isScrollEnabled = false
+        // PencilKit adapts ink colors to the interface style; in dark mode that
+        // turns black ink light, making it invisible on the white page. Pin the
+        // canvas to light so ink renders with its literal color.
+        canvas.overrideUserInterfaceStyle = .light
         canvas.frame = contentView.bounds
         canvas.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         if let drawing = try? PKDrawing(data: page.drawingData) {
