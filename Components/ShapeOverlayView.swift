@@ -44,7 +44,7 @@ final class ShapeOverlayView: UIView {
     // Interaction state
     private var draft: CanvasItem?
     private var dragStart: CGPoint = .zero
-    private enum DragMode { case none, create, move, resize(handle: Int), lasso }
+    private enum DragMode { case none, create, move, moveInk, resize(handle: Int), lasso }
     private var dragMode: DragMode = .none
     private var movingItemOriginalFrame: CGRect = .zero
     private var lassoPoints: [CGPoint] = []
@@ -96,14 +96,12 @@ final class ShapeOverlayView: UIView {
         let isFinger = (event?.allTouches?.first?.type ?? .pencil) != .pencil
         switch tool {
         case .selection:
-            // Only intercept taps on a shape or its resize handles; empty space
-            // falls through to the PencilKit canvas, whose lasso selects (and
-            // moves/deletes) multiple handwriting strokes at once.
-            if let sel = items.first(where: { $0.id == selectedID }),
-               handleRects(for: sel).contains(where: { $0.contains(point) }) {
-                return true
-            }
-            return items.contains { hitTest($0, point: point) }
+            // Intercept everything in selection mode: taps on shapes/handles and
+            // empty-space lasso loops (which now select handwriting ink in the
+            // overlay so we can show our own recolor / move / delete menu). Page
+            // scroll is disabled in selection mode, and two-finger pinch-zoom still
+            // works via the scroll view's own gesture recognizer.
+            return true
         case .shape, .flowchart:
             if isFinger && !allowsFingerDrawing { return false }
             return super.point(inside: point, with: event)
@@ -131,6 +129,16 @@ final class ShapeOverlayView: UIView {
 
         if let selected = items.first(where: { $0.id == selectedID }) {
             drawSelection(for: selected, in: ctx)
+        }
+
+        // Dashed box around a lasso-selected handwriting group.
+        if let r = inkSelectionRect {
+            ctx.saveGState()
+            ctx.setStrokeColor(UIColor.systemBlue.cgColor)
+            ctx.setLineWidth(1.5)
+            ctx.setLineDash(phase: 0, lengths: [6, 4])
+            ctx.stroke(r.insetBy(dx: -6, dy: -6))
+            ctx.restoreGState()
         }
 
         if case .lasso = dragMode, lassoPoints.count > 1 {
@@ -209,6 +217,12 @@ final class ShapeOverlayView: UIView {
         case .move:
             didMove = true
             moveSelected(by: CGPoint(x: point.x - dragStart.x, y: point.y - dragStart.y))
+        case .moveInk:
+            didMove = true
+            let d = CGSize(width: point.x - lastDragPoint.x, height: point.y - lastDragPoint.y)
+            moveSelectedInk(d)
+            inkSelectionRect = inkSelectionRect?.offsetBy(dx: d.width, dy: d.height)
+            lastDragPoint = point
         case .resize(let handle):
             didMove = true
             resizeSelected(handle: handle, to: point)
@@ -236,6 +250,8 @@ final class ShapeOverlayView: UIView {
                     presentEditMenu(at: CGPoint(x: sel.frame.midX, y: sel.frame.minY - 8))
                 }
             }
+        case .moveInk:
+            break   // strokes were moved + persisted live via the ink bridge
         case .lasso:
             finishLasso()
         case .none:
@@ -439,18 +455,34 @@ final class ShapeOverlayView: UIView {
                 return
             }
         }
+        // Inside an existing ink selection? Drag to move the selected strokes.
+        if let rect = inkSelectionRect, rect.insetBy(dx: -8, dy: -8).contains(point) {
+            dragMode = .moveInk
+            lastDragPoint = point
+            return
+        }
         // Hit-test items top-down.
         if let hit = items.last(where: { hitTest($0, point: point) }) {
+            clearInkSelectionState()
             selectedID = hit.id
             movingItemOriginalFrame = hit.frame
             dragMode = .move
         } else {
-            // Empty space: begin a lasso loop to select by enclosure.
+            // Empty space: begin a lasso loop (selects a shape, or failing that the
+            // handwriting strokes it encloses).
             selectedID = nil
+            clearInkSelectionState()
             lassoPoints = [point]
             dragMode = .lasso
         }
         setNeedsDisplay()
+    }
+
+    /// Drops any active handwriting (ink) lasso selection.
+    private func clearInkSelectionState() {
+        guard inkSelectionRect != nil else { return }
+        inkSelectionRect = nil
+        clearInkSelection()
     }
 
     /// Selects the topmost item enclosed by the lasso loop and pops up its menu.
@@ -458,9 +490,17 @@ final class ShapeOverlayView: UIView {
         defer { lassoPoints = [] }
         guard lassoPoints.count > 2 else { return }
         let poly = lassoPoints
+        // Prefer a fully enclosed shape; otherwise select the handwriting ink.
         if let hit = items.last(where: { enclosed($0, in: poly) }) {
             selectedID = hit.id
             presentEditMenu(at: CGPoint(x: hit.frame.midX, y: hit.frame.minY - 8))
+            return
+        }
+        selectedID = nil
+        if let rect = selectInk(poly) {
+            inkSelectionRect = rect
+            setNeedsDisplay()
+            presentEditMenu(at: CGPoint(x: rect.midX, y: rect.minY - 8))
         }
     }
 
@@ -619,6 +659,27 @@ extension ShapeOverlayView: UIEditMenuInteractionDelegate {
     func editMenuInteraction(_ interaction: UIEditMenuInteraction,
                              menuFor configuration: UIEditMenuConfiguration,
                              suggestedActions: [UIMenuElement]) -> UIMenu? {
+        // Handwriting (ink) selection: recolor or delete the lasso group.
+        if selectedID == nil, inkSelectionRect != nil {
+            let names = ["Black", "Blue", "Red", "Green", "Orange", "Purple", "Yellow", "Gray"]
+            let colorActions = zip(ToolDefaults.palette, names).map { color, name in
+                UIAction(title: name, image: ShapeOverlayView.swatch(color.uiColor)) { [weak self] _ in
+                    self?.recolorSelectedInk(color)
+                    self?.clearInkSelectionState()
+                    self?.setNeedsDisplay()
+                }
+            }
+            let colorMenu = UIMenu(title: "Color", image: UIImage(systemName: "paintpalette"),
+                                   children: colorActions)
+            let delete = UIAction(title: "Delete", image: UIImage(systemName: "trash"),
+                                  attributes: .destructive) { [weak self] _ in
+                self?.deleteSelectedInk()
+                self?.clearInkSelectionState()
+                self?.setNeedsDisplay()
+            }
+            return UIMenu(children: [colorMenu, delete])
+        }
+
         guard selectedID != nil else { return nil }
 
         let duplicate = UIAction(title: "Duplicate",

@@ -115,6 +115,89 @@ final class PageContainerView: UIView {
         updateFooter()
     }
 
+    // MARK: - Handwriting (ink) lasso selection
+
+    /// Indices into `canvas.drawing.strokes` that are currently lasso-selected.
+    private var selectedInkIndices: [Int] = []
+
+    /// Selects strokes whose sampled path is mostly inside `polygon` (page
+    /// coordinates); returns the union of their render bounds, or nil if none.
+    func selectInk(in polygon: [CGPoint]) -> CGRect? {
+        let strokes = canvas.drawing.strokes
+        var indices: [Int] = []
+        var bounds = CGRect.null
+        for (i, stroke) in strokes.enumerated() {
+            let pts = Self.sampledPoints(of: stroke)
+            guard !pts.isEmpty else { continue }
+            let inside = pts.reduce(0) { $0 + (Self.pointInPolygon($1, polygon) ? 1 : 0) }
+            if inside * 2 >= pts.count {                 // majority of the stroke enclosed
+                indices.append(i)
+                bounds = bounds.union(stroke.renderBounds)
+            }
+        }
+        selectedInkIndices = indices
+        return indices.isEmpty ? nil : bounds
+    }
+
+    func clearInkSelection() { selectedInkIndices = [] }
+
+    /// Recolors the selected strokes, preserving each stroke's ink type and geometry.
+    func recolorSelectedInk(_ color: UIColor) {
+        mutateSelectedInk { stroke in
+            PKStroke(ink: PKInk(stroke.ink.inkType, color: color),
+                     path: stroke.path, transform: stroke.transform, mask: stroke.mask)
+        }
+    }
+
+    /// Translates the selected strokes by `offset`.
+    func moveSelectedInk(by offset: CGSize) {
+        let t = CGAffineTransform(translationX: offset.width, y: offset.height)
+        mutateSelectedInk { stroke in
+            PKStroke(ink: stroke.ink, path: stroke.path,
+                     transform: stroke.transform.concatenating(t), mask: stroke.mask)
+        }
+    }
+
+    func deleteSelectedInk() {
+        guard !selectedInkIndices.isEmpty else { return }
+        let drop = Set(selectedInkIndices)
+        let kept = canvas.drawing.strokes.enumerated()
+            .filter { !drop.contains($0.offset) }
+            .map { $0.element }
+        canvas.drawing = PKDrawing(strokes: kept)
+        selectedInkIndices = []
+    }
+
+    private func mutateSelectedInk(_ transform: (PKStroke) -> PKStroke) {
+        guard !selectedInkIndices.isEmpty else { return }
+        var strokes = canvas.drawing.strokes
+        for i in selectedInkIndices where i < strokes.count {
+            strokes[i] = transform(strokes[i])
+        }
+        canvas.drawing = PKDrawing(strokes: strokes)
+    }
+
+    /// Evenly sampled points along a stroke, in page coordinates.
+    private static func sampledPoints(of stroke: PKStroke) -> [CGPoint] {
+        stroke.path.interpolatedPoints(by: .distance(16))
+            .map { $0.location.applying(stroke.transform) }
+    }
+
+    private static func pointInPolygon(_ p: CGPoint, _ poly: [CGPoint]) -> Bool {
+        guard poly.count > 2 else { return false }
+        var inside = false
+        var j = poly.count - 1
+        for i in 0..<poly.count {
+            let a = poly[i], b = poly[j]
+            if ((a.y > p.y) != (b.y > p.y)),
+               p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x {
+                inside.toggle()
+            }
+            j = i
+        }
+        return inside
+    }
+
     /// The fill color for a given paper template.
     static func surfaceColor(for style: PaperStyle) -> UIColor {
         switch style {

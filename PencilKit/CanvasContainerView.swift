@@ -330,7 +330,32 @@ struct CanvasContainerView: UIViewRepresentable {
                 self?.editor.tool = .selection
                 self?.applyTool()
             }
+            // Handwriting (ink) lasso bridge: the canvas owns the strokes, so the
+            // overlay's lasso defers stroke selection / recolor / move / delete here.
+            pv.overlay.selectInk = { [weak pv] poly in pv?.selectInk(in: poly) }
+            pv.overlay.clearInkSelection = { [weak pv] in pv?.clearInkSelection() }
+            pv.overlay.recolorSelectedInk = { [weak self, weak pv, weak page] rgba in
+                guard let pv, let page else { return }
+                pv.recolorSelectedInk(rgba.uiColor)
+                self?.persistInk(of: pv, page: page)
+            }
+            pv.overlay.moveSelectedInk = { [weak self, weak pv, weak page] offset in
+                guard let pv, let page else { return }
+                pv.moveSelectedInk(by: offset)
+                self?.persistInk(of: pv, page: page)
+            }
+            pv.overlay.deleteSelectedInk = { [weak self, weak pv, weak page] in
+                guard let pv, let page else { return }
+                pv.deleteSelectedInk()
+                self?.persistInk(of: pv, page: page)
+            }
             return pv
+        }
+
+        /// Persists a page's handwriting after an ink-bridge edit (recolor/move/delete).
+        private func persistInk(of pv: PageContainerView, page: Page) {
+            page.drawingData = pv.canvas.drawing.dataRepresentation()
+            autoSave.scheduleSave(touching: page)
         }
 
         /// Applies the current tool to every page's canvas + overlay.
@@ -353,9 +378,10 @@ struct CanvasContainerView: UIViewRepresentable {
 
             for pv in pageViews {
                 pv.canvas.tool = editor.pkTool
-                // Selection enables the PencilKit lasso (any input) for ink.
-                pv.canvas.drawingPolicy = isSelection ? .anyInput : editor.drawingPolicy
-                pv.canvas.drawingGestureRecognizer.isEnabled = !isOverlayDraw
+                pv.canvas.drawingPolicy = editor.drawingPolicy
+                // In selection mode the overlay owns the lasso (it can recolor ink),
+                // so the canvas's own drawing/lasso gesture is disabled.
+                pv.canvas.drawingGestureRecognizer.isEnabled = !(isOverlayDraw || isSelection)
                 pv.overlay.tool = tool
                 pv.overlay.allowsFingerDrawing = editor.allowsFingerDrawing
             }
