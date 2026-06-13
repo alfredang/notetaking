@@ -62,6 +62,15 @@ struct NotebookView: View {
             let ink = notebookVM.paperStyle.defaultInkColor
             editorVM.penColor = ink
             editorVM.shapeStrokeColor = ink
+            // Wire the in-toolbar template control + thumbnail refresh.
+            controller.currentPaperStyle = { notebookVM.paperStyle }
+            controller.setPaperStyle = { style in
+                notebookVM.setPaperStyle(style)
+                controller.reloadAllPages()
+                editorVM.penColor = style.defaultInkColor
+                editorVM.shapeStrokeColor = style.defaultInkColor
+            }
+            controller.refreshThumbnails = { notebookVM.bump() }
         }
         .onChange(of: allowsFingerDrawing) { _, newValue in
             editorVM.allowsFingerDrawing = newValue
@@ -82,20 +91,6 @@ struct NotebookView: View {
         }
     }
 
-    /// Binds the template picker to the page the user is currently viewing,
-    /// switching the default ink so strokes stay visible on the new surface.
-    private var paperStyleBinding: Binding<PaperStyle> {
-        Binding(
-            get: { notebookVM.paperStyle },
-            set: { newStyle in
-                // Template applies to the whole notebook and recolors content.
-                notebookVM.setPaperStyle(newStyle)
-                controller.reloadAllPages()
-                editorVM.penColor = newStyle.defaultInkColor
-                editorVM.shapeStrokeColor = newStyle.defaultInkColor
-            }
-        )
-    }
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
@@ -129,20 +124,6 @@ struct NotebookView: View {
             .accessibilityLabel("Page size")
         }
         ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                Picker("Template", selection: paperStyleBinding) {
-                    ForEach(PaperStyle.allCases) { style in
-                        Label(style.displayName,
-                              systemImage: style == .blackboard ? "rectangle.fill" : "rectangle")
-                            .tag(style)
-                    }
-                }
-            } label: {
-                Image(systemName: "square.grid.2x2")
-            }
-            .accessibilityLabel("Page template")
-        }
-        ToolbarItem(placement: .topBarTrailing) {
             Button {
                 showPDFImporter = true
             } label: {
@@ -157,22 +138,6 @@ struct NotebookView: View {
                 Image(systemName: "waveform")
             }
             .accessibilityLabel("Audio notes")
-        }
-        ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                Button(role: .destructive) {
-                    // Act immediately — presenting a dialog from a Menu is unreliable.
-                    controller.clearVisiblePage()
-                    notebookVM.bump()
-                } label: { Label("Clear Page", systemImage: "trash.slash") }
-                Button(role: .destructive) {
-                    controller.clearAllPages()
-                    notebookVM.bump()
-                } label: { Label("Clear All Pages", systemImage: "trash") }
-            } label: {
-                Image(systemName: "trash.slash")
-            }
-            .accessibilityLabel("Clear")
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {

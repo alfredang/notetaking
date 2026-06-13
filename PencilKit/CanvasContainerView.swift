@@ -1,6 +1,20 @@
 import SwiftUI
 import PencilKit
 
+/// Scroll view that reports size changes so the editor can re-fit the page to
+/// the available width (on open and on rotation / multitasking resize).
+final class EditorScrollView: UIScrollView {
+    var onBoundsChange: ((CGSize) -> Void)?
+    private var lastSize: CGSize = .zero
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if bounds.size != lastSize {
+            lastSize = bounds.size
+            onBoundsChange?(bounds.size)
+        }
+    }
+}
+
 /// SwiftUI wrapper around a zoom/pan `UIScrollView` that stacks the notebook's
 /// pages vertically. Pencil draws on each page's canvas; fingers pan/zoom.
 struct CanvasContainerView: UIViewRepresentable {
@@ -20,7 +34,10 @@ struct CanvasContainerView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> UIScrollView {
-        let scrollView = UIScrollView()
+        let scrollView = EditorScrollView()
+        scrollView.onBoundsChange = { [weak coordinator = context.coordinator] _ in
+            coordinator?.handleBoundsChange()
+        }
         // Canvas surround adapts to light/dark mode (light gray vs near-black),
         // while the page paper and ink stay literal (see PageContainerView).
         scrollView.backgroundColor = .systemGroupedBackground
@@ -93,6 +110,7 @@ struct CanvasContainerView: UIViewRepresentable {
         private var pageViews: [PageContainerView] = []
         private var pageForCanvas: [ObjectIdentifier: Page] = [:]
         private var didInitialFit = false
+        private var autoFitScale: CGFloat = 0
         private var requestedNewPage = false
 
         init(editor: EditorViewModel, autoSave: AutoSaveService, controller: CanvasController) {
@@ -180,13 +198,29 @@ struct CanvasContainerView: UIViewRepresentable {
             pv.page.touch()
         }
 
-        /// Zooms so the page fills the editor's full width the first time it lays
-        /// out (GoodNotes-style: no side dead space; scroll vertically for more).
-        func fitToPageIfNeeded() {
-            guard !didInitialFit, fitWidthScale() != nil else { return }
-            applyFit()
-            didInitialFit = true
+        /// On open, fit the page to the full width and show the top of the first
+        /// page. On rotation / resize, re-fit if the user hasn't manually zoomed.
+        func handleBoundsChange() {
+            guard let scrollView, let fit = fitWidthScale() else { return }
+            if !didInitialFit {
+                applyFit()
+                scrollToTop()
+                didInitialFit = true
+                autoFitScale = fit
+            } else if abs(scrollView.zoomScale - autoFitScale) < 0.02 {
+                applyFit()
+                autoFitScale = scrollView.zoomScale
+            }
         }
+
+        private func scrollToTop() {
+            guard let scrollView else { return }
+            scrollView.setContentOffset(
+                CGPoint(x: -scrollView.contentInset.left, y: -scrollView.contentInset.top),
+                animated: false)
+        }
+
+        func fitToPageIfNeeded() { handleBoundsChange() }
 
         /// The zoom scale that makes the page fill the editor's width.
         private func fitWidthScale() -> CGFloat? {

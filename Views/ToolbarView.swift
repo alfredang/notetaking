@@ -18,6 +18,8 @@ struct ToolbarView: View {
             if let cb = colorBinding { colorButton(cb) }
             if let sb = sizeBinding { widthMenu(sizes: sb.sizes, selection: sb.value) }
             Spacer(minLength: 8)
+            pageControls
+            Divider().frame(height: 28)
             historyControls
         }
         .padding(.horizontal, 12)
@@ -193,6 +195,57 @@ struct ToolbarView: View {
         }
         .hoverEffect(.highlight)
         .accessibilityLabel("Stroke width")
+    }
+
+    // MARK: - Page controls (template / add page / clear)
+
+    private var pageControls: some View {
+        HStack(spacing: 4) {
+            Menu {
+                Button { controller.setPaperStyle(.white) } label: {
+                    Label("White", systemImage: "rectangle")
+                }
+                Button { controller.setPaperStyle(.blackboard) } label: {
+                    Label("Blackboard", systemImage: "rectangle.fill")
+                }
+            } label: {
+                barIcon("square.grid.2x2")
+            }
+            .accessibilityLabel("Page template")
+
+            Button {
+                controller.requestNewPageAtEnd()
+            } label: {
+                barIcon("plus.rectangle.portrait")
+            }
+            .buttonStyle(.plain)
+            .hoverEffect(.highlight)
+            .accessibilityLabel("Add page")
+
+            Menu {
+                Button(role: .destructive) {
+                    controller.clearVisiblePage()
+                    controller.refreshThumbnails()
+                } label: { Label("Clear Page", systemImage: "trash.slash") }
+                Button(role: .destructive) {
+                    controller.clearAllPages()
+                    controller.refreshThumbnails()
+                } label: { Label("Clear All Pages", systemImage: "trash") }
+            } label: {
+                barIcon("trash")
+            }
+            .accessibilityLabel("Clear")
+        }
+    }
+
+    private func barIcon(_ systemImage: String) -> some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 18))
+            .frame(width: 38, height: 38)
+            .foregroundStyle(Color.primary)
+            .clipShape(RoundedRectangle(cornerRadius: 9))
+            .contentShape(Rectangle())
+            .hoverEffect(.highlight)
     }
 
     // MARK: - History

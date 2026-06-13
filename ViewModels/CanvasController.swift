@@ -30,4 +30,10 @@ final class CanvasController {
     var requestNewPageAtEnd: () -> Void = {}
     /// Recolors the currently selected shape/flowchart element.
     var setSelectedColor: (RGBAColor) -> Void = { _ in }
+    /// The notebook's current paper template, and a setter that applies it
+    /// notebook-wide — used by the in-canvas toolbar's template control.
+    var currentPaperStyle: () -> PaperStyle = { .white }
+    var setPaperStyle: (PaperStyle) -> Void = { _ in }
+    /// Refreshes page thumbnails after a destructive edit (e.g. clear).
+    var refreshThumbnails: () -> Void = {}
 }
