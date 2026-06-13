@@ -53,7 +53,19 @@ final class EditorViewModel {
 
     /// Style for a newly created overlay item using the current settings.
     func makeItem(kind: ShapeKind, frame: CGRect = .zero, start: CGPoint? = nil, end: CGPoint? = nil) -> CanvasItem {
-        CanvasItem(
+        // Sticky notes ignore the active stroke/fill and use a warm card style.
+        if kind == .stickyNote {
+            return CanvasItem(
+                kind: kind,
+                frame: frame,
+                strokeColor: RGBAColor(red: 0.30, green: 0.26, blue: 0.0),
+                fillColor: RGBAColor(red: 1.0, green: 0.90, blue: 0.40),
+                lineWidth: 0,
+                opacity: 1,
+                text: defaultLabel(for: kind)
+            )
+        }
+        return CanvasItem(
             kind: kind,
             frame: frame,
             start: start,
@@ -62,7 +74,7 @@ final class EditorViewModel {
             fillColor: shapeFillColor,
             lineWidth: shapeLineWidth,
             opacity: shapeOpacity,
-            text: kind.isNode ? defaultLabel(for: kind) : nil
+            text: kind.hasLabel ? defaultLabel(for: kind) : nil
         )
     }
 
@@ -71,6 +83,7 @@ final class EditorViewModel {
         case .process: "Process"
         case .decision: "Decision"
         case .startEnd: "Start"
+        case .stickyNote: "Note"
         default: ""
         }
     }

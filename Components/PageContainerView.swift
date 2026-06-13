@@ -8,12 +8,14 @@ final class PageContainerView: UIView {
     let canvas: PKCanvasView
     let overlay: ShapeOverlayView
     private let contentView = UIView()
+    private let backgroundImageView = UIImageView()
 
     init(page: Page) {
         self.page = page
-        self.canvas = PKCanvasView(frame: CGRect(origin: .zero, size: PageGeometry.a4))
-        self.overlay = ShapeOverlayView(frame: CGRect(origin: .zero, size: PageGeometry.a4))
-        super.init(frame: CGRect(origin: .zero, size: PageGeometry.a4))
+        let pageSize = page.canvasSize
+        self.canvas = PKCanvasView(frame: CGRect(origin: .zero, size: pageSize))
+        self.overlay = ShapeOverlayView(frame: CGRect(origin: .zero, size: pageSize))
+        super.init(frame: CGRect(origin: .zero, size: pageSize))
 
         // Soft shadow on the outer view.
         layer.shadowColor = UIColor.black.cgColor
@@ -28,6 +30,13 @@ final class PageContainerView: UIView {
         contentView.frame = bounds
         contentView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         addSubview(contentView)
+
+        // Imported page background (e.g. a PDF page) below the ink.
+        backgroundImageView.contentMode = .scaleAspectFit
+        backgroundImageView.frame = contentView.bounds
+        backgroundImageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        backgroundImageView.image = page.backgroundData.isEmpty ? nil : UIImage(data: page.backgroundData)
+        contentView.addSubview(backgroundImageView)
 
         // PencilKit canvas.
         canvas.backgroundColor = .clear
@@ -50,7 +59,7 @@ final class PageContainerView: UIView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    override var intrinsicContentSize: CGSize { PageGeometry.a4 }
+    override var intrinsicContentSize: CGSize { page.canvasSize }
 
     /// Reloads visual content from the model (after clear / external change).
     func reloadFromModel() {
@@ -60,5 +69,6 @@ final class PageContainerView: UIView {
             canvas.drawing = PKDrawing()
         }
         overlay.items = page.items
+        backgroundImageView.image = page.backgroundData.isEmpty ? nil : UIImage(data: page.backgroundData)
     }
 }

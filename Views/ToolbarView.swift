@@ -35,6 +35,7 @@ struct ToolbarView: View {
             toolButton("lasso", tool: .selection, isActive: editor.tool == .selection)
             shapeMenu
             flowchartMenu
+            toolButton("note.text", tool: .shape(.stickyNote), isActive: editor.tool == .shape(.stickyNote))
         }
     }
 

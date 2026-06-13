@@ -7,6 +7,7 @@ import SwiftData
 final class AutoSaveService {
     private let context: ModelContext
     private var pendingTask: Task<Void, Never>?
+    private var indexTask: Task<Void, Never>?
     private let debounce: Duration
 
     init(context: ModelContext, debounce: Duration = .milliseconds(400)) {
@@ -22,6 +23,25 @@ final class AutoSaveService {
             guard let self else { return }
             try? await Task.sleep(for: debounce)
             if Task.isCancelled { return }
+            self.saveNow()
+        }
+        scheduleTextIndex(for: page)
+    }
+
+    /// Re-runs OCR for the edited page on a longer debounce (it's expensive) and
+    /// persists the recognized text so the dashboard search stays current.
+    private func scheduleTextIndex(for page: Page?) {
+        guard let page else { return }
+        indexTask?.cancel()
+        indexTask = Task { [weak self, weak page] in
+            try? await Task.sleep(for: .seconds(1.5))
+            if Task.isCancelled { return }
+            guard let self, let page else { return }
+            let png = PageRenderer.image(for: page, scale: 1).pngData() ?? Data()
+            let text = await TextRecognitionService.recognizeText(fromPNG: png)
+            if Task.isCancelled { return }
+            guard page.recognizedText != text else { return }
+            page.recognizedText = text
             self.saveNow()
         }
     }

@@ -114,8 +114,8 @@ struct CanvasContainerView: UIViewRepresentable {
                 let pv = PageContainerView(page: page)
                 pv.translatesAutoresizingMaskIntoConstraints = false
                 NSLayoutConstraint.activate([
-                    pv.widthAnchor.constraint(equalToConstant: PageGeometry.a4.width),
-                    pv.heightAnchor.constraint(equalToConstant: PageGeometry.a4.height)
+                    pv.widthAnchor.constraint(equalToConstant: page.canvasSize.width),
+                    pv.heightAnchor.constraint(equalToConstant: page.canvasSize.height)
                 ])
                 pv.canvas.delegate = self
                 pageForCanvas[ObjectIdentifier(pv.canvas)] = page

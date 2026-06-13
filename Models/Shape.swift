@@ -17,6 +17,8 @@ enum ShapeKind: String, Codable, CaseIterable, Sendable {
     case startEnd       // capsule (terminator)
     // Flowchart connector
     case connector
+    // Sticky note (filled card with text)
+    case stickyNote
 
     var isNode: Bool {
         switch self {
@@ -26,6 +28,9 @@ enum ShapeKind: String, Codable, CaseIterable, Sendable {
     }
 
     var isConnector: Bool { self == .connector }
+
+    /// Items that render an editable text label (flowchart nodes + sticky notes).
+    var hasLabel: Bool { isNode || self == .stickyNote }
 
     /// Line-like shapes are defined by two endpoints rather than a rect.
     var isLineLike: Bool {

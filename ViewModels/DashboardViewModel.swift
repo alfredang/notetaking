@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftData
 
 /// Drives the dashboard: notebook listing, sorting, search and CRUD.
 @MainActor
@@ -22,11 +23,16 @@ final class DashboardViewModel {
         reload()
     }
 
-    /// Notebooks after applying the current search filter.
+    /// Notebooks after applying the current search filter. Matches the title or
+    /// any recognized handwriting/text inside the notebook's pages.
     var filteredNotebooks: [Notebook] {
-        guard !searchText.trimmingCharacters(in: .whitespaces).isEmpty else { return notebooks }
-        return notebooks.filter {
-            $0.title.localizedCaseInsensitiveContains(searchText)
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return notebooks }
+        return notebooks.filter { notebook in
+            notebook.title.localizedCaseInsensitiveContains(query)
+                || notebook.orderedPages.contains {
+                    $0.recognizedText.localizedCaseInsensitiveContains(query)
+                }
         }
     }
 
@@ -79,6 +85,16 @@ final class DashboardViewModel {
     func duplicate(_ notebook: Notebook) {
         do {
             try repository.duplicate(notebook)
+            reload()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Imports a shared `.notebook` archive as a new top-level notebook.
+    func importArchive(from url: URL, into context: ModelContext) {
+        do {
+            try NotebookArchiveService.importArchive(from: url, into: context)
             reload()
         } catch {
             errorMessage = error.localizedDescription

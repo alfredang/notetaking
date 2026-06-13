@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 /// An open notebook: thumbnail sidebar + page editor, with page/export actions.
 struct NotebookView: View {
@@ -12,12 +13,14 @@ struct NotebookView: View {
     @State private var autoSave: AutoSaveService
     @State private var showSidebar = true
     @State private var showClearConfirm = false
+    @State private var showAudioNotes = false
+    @State private var showPDFImporter = false
     @State private var exportItem: ExportRequest?
 
     init(notebook: Notebook) {
         self.notebook = notebook
         // Build dependencies from the shared context.
-        let context = notebook.modelContext ?? ModelContext(try! ModelContainer(for: Notebook.self, Page.self))
+        let context = notebook.modelContext ?? ModelContext(try! ModelContainer(for: Notebook.self, Page.self, AudioNote.self))
         _notebookVM = State(initialValue: NotebookViewModel(
             notebook: notebook,
             repository: PageRepository(context: context)
@@ -61,6 +64,15 @@ struct NotebookView: View {
         .sheet(item: $exportItem) { request in
             ExportSheet(request: request)
         }
+        .sheet(isPresented: $showAudioNotes) {
+            AudioNotesView(notebook: notebook)
+        }
+        .fileImporter(isPresented: $showPDFImporter, allowedContentTypes: [.pdf]) { result in
+            if case .success(let url) = result {
+                notebookVM.importPDF(from: url)
+                controller.scrollToPage(notebookVM.selectedPageIndex)
+            }
+        }
     }
 
     @ToolbarContentBuilder
@@ -77,6 +89,33 @@ struct NotebookView: View {
                 Image(systemName: "hand.draw")
             }
             .toggleStyle(.button)
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Button {
+                    notebookVM.extendCurrentPage()
+                    controller.scrollToPage(notebookVM.selectedPageIndex)
+                } label: { Label("Extend Page", systemImage: "arrow.down.to.line") }
+                Button {
+                    notebookVM.resetCurrentPageHeight()
+                } label: { Label("Reset Page Height", systemImage: "arrow.up.to.line") }
+            } label: {
+                Image(systemName: "rectangle.expand.vertical")
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                showPDFImporter = true
+            } label: {
+                Image(systemName: "doc.badge.plus")
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                showAudioNotes = true
+            } label: {
+                Image(systemName: "waveform")
+            }
         }
         ToolbarItem(placement: .topBarTrailing) {
             Button(role: .destructive) {

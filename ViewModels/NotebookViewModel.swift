@@ -18,7 +18,7 @@ final class NotebookViewModel {
         self.notebook = notebook
         self.repository = repository
         // Ensure a notebook always has at least one page.
-        if notebook.pages.isEmpty {
+        if notebook.orderedPages.isEmpty {
             _ = try? repository.addPage(to: notebook, at: nil)
         }
     }
@@ -79,6 +79,43 @@ final class NotebookViewModel {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Imports a PDF, appending one annotatable page per PDF page.
+    func importPDF(from url: URL) {
+        let backgrounds = PDFImportService.renderBackgrounds(from: url)
+        guard !backgrounds.isEmpty else {
+            errorMessage = "Couldn't read that PDF."
+            return
+        }
+        do {
+            let firstNewIndex = pages.count
+            try repository.appendPages(withBackgrounds: backgrounds, to: notebook)
+            bump()
+            selectedPageIndex = firstNewIndex
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Infinite / extendable canvas
+
+    /// Grows the current page by one more A4 height (up to a sane cap).
+    func extendCurrentPage() {
+        guard let page = selectedPage else { return }
+        page.heightUnits = min(page.heightUnits + 1, 12)
+        page.touch()
+        try? repository.save()
+        bump()
+    }
+
+    /// Restores the current page to a single A4 height.
+    func resetCurrentPageHeight() {
+        guard let page = selectedPage, page.heightUnits != 1 else { return }
+        page.heightUnits = 1
+        page.touch()
+        try? repository.save()
+        bump()
     }
 
     func bump() { refreshToken &+= 1 }

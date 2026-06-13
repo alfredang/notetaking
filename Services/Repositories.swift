@@ -19,6 +19,9 @@ protocol NotebookRepositoryProtocol {
 protocol PageRepositoryProtocol {
     @discardableResult
     func addPage(to notebook: Notebook, at index: Int?) throws(StorageError) -> Page
+    /// Appends one page per background raster (e.g. imported PDF pages).
+    @discardableResult
+    func appendPages(withBackgrounds backgrounds: [Data], to notebook: Notebook) throws(StorageError) -> [Page]
     func delete(_ page: Page, from notebook: Notebook) throws(StorageError)
     @discardableResult
     func duplicate(_ page: Page, in notebook: Notebook) throws(StorageError) -> Page
@@ -61,7 +64,7 @@ final class NotebookRepository: NotebookRepositoryProtocol {
 
     @discardableResult
     func create(title: String, parent: Notebook?) throws(StorageError) -> Notebook {
-        let siblingsCount = parent?.children.count ?? (try? allTopLevel(sortedBy: .createdDate).count) ?? 0
+        let siblingsCount = parent?.children?.count ?? (try? allTopLevel(sortedBy: .createdDate).count) ?? 0
         let notebook = Notebook(title: title, sortIndex: siblingsCount, parent: parent)
         context.insert(notebook)
         parent?.touch()
@@ -97,7 +100,7 @@ final class NotebookRepository: NotebookRepositoryProtocol {
                 notebook: copy
             )
             context.insert(pageCopy)
-            copy.pages.append(pageCopy)
+            copy.pages = (copy.pages ?? []) + [pageCopy]
         }
         try save()
         return copy
@@ -133,6 +136,23 @@ final class PageRepository: PageRepositoryProtocol {
         notebook.touch()
         try save()
         return page
+    }
+
+    @discardableResult
+    func appendPages(withBackgrounds backgrounds: [Data], to notebook: Notebook) throws(StorageError) -> [Page] {
+        var pages = notebook.orderedPages
+        var created: [Page] = []
+        for background in backgrounds {
+            let page = Page(pageIndex: pages.count, backgroundData: background, notebook: notebook)
+            context.insert(page)
+            pages.append(page)
+            created.append(page)
+        }
+        reindex(pages)
+        notebook.pages = pages
+        notebook.touch()
+        try save()
+        return created
     }
 
     func delete(_ page: Page, from notebook: Notebook) throws(StorageError) {

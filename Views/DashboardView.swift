@@ -18,6 +18,9 @@ struct DashboardView: View {
     @State private var showingSettings = false
     /// Pending deletion awaiting confirmation.
     @State private var pendingDelete: Notebook?
+    /// Notebook archive to share via the export sheet.
+    @State private var shareItem: ExportRequest?
+    @State private var showingImporter = false
 
     private let title: String
 
@@ -61,14 +64,15 @@ struct DashboardView: View {
                             onAddSubNotebook: {
                                 _ = viewModel.createNotebook(title: "New Folder")
                                 // Created at parent scope; reload handled by VM.
-                            }
+                            },
+                            onShare: { shareItem = .notebookArchive(notebook) }
                         )
                     }
                 }
                 .padding(24)
             }
         }
-        .searchable(text: $viewModel.searchText, prompt: "Search notebooks")
+        .searchable(text: $viewModel.searchText, prompt: "Search notebooks & handwriting")
         .toolbar { toolbarContent }
         .alert("New Notebook", isPresented: $showingNewNotebook) {
             TextField("Notebook name", text: $newNotebookName)
@@ -91,6 +95,17 @@ struct DashboardView: View {
             Text("This permanently deletes the notebook and all of its pages and sub-notebooks.")
         }
         .sheet(isPresented: $showingSettings) { SettingsView() }
+        .sheet(item: $shareItem) { request in
+            ExportSheet(request: request)
+        }
+        .fileImporter(
+            isPresented: $showingImporter,
+            allowedContentTypes: [NotebookArchiveService.contentType]
+        ) { result in
+            if case .success(let url) = result {
+                viewModel.importArchive(from: url, into: modelContext)
+            }
+        }
     }
 
     @ToolbarContentBuilder
@@ -109,6 +124,13 @@ struct DashboardView: View {
                 }
             } label: {
                 Label("Sort", systemImage: "arrow.up.arrow.down")
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                showingImporter = true
+            } label: {
+                Label("Import Notebook", systemImage: "square.and.arrow.down")
             }
         }
         ToolbarItem(placement: .topBarTrailing) {

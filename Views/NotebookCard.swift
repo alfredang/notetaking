@@ -9,6 +9,7 @@ struct NotebookCard: View {
     var onDuplicate: () -> Void
     var onDelete: () -> Void
     var onAddSubNotebook: () -> Void
+    var onShare: () -> Void
 
     @State private var isRenaming = false
     @State private var draftTitle = ""
@@ -35,8 +36,8 @@ struct NotebookCard: View {
                 Image(systemName: "doc.on.doc")
                     .imageScale(.small)
                 Text("\(notebook.pageCount) pages")
-                if notebook.children.count > 0 {
-                    Text("· \(notebook.children.count) folders")
+                if notebook.orderedChildren.count > 0 {
+                    Text("· \(notebook.orderedChildren.count) folders")
                 }
             }
             .font(.caption)
@@ -53,12 +54,13 @@ struct NotebookCard: View {
         )
         .contextMenu {
             Button { onOpen() } label: { Label("Open", systemImage: "book") }
-            if notebook.children.count > 0 {
+            if notebook.orderedChildren.count > 0 {
                 Button { onOpenFolder() } label: { Label("Open Sub-Notebooks", systemImage: "folder") }
             }
             Button { beginRename() } label: { Label("Rename", systemImage: "pencil") }
             Button { onAddSubNotebook() } label: { Label("Add Sub-Notebook", systemImage: "folder.badge.plus") }
             Button { onDuplicate() } label: { Label("Duplicate", systemImage: "plus.square.on.square") }
+            Button { onShare() } label: { Label("Share Notebook", systemImage: "square.and.arrow.up") }
             Divider()
             Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
         }

@@ -38,6 +38,11 @@ final class ShapeOverlayView: UIView {
         backgroundColor = .clear
         isOpaque = false
         contentMode = .redraw
+
+        // Double-tap a labelled item (sticky note / flowchart node) to edit its text.
+        let doubleTap = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap(_:)))
+        doubleTap.numberOfTapsRequired = 2
+        addGestureRecognizer(doubleTap)
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -170,12 +175,55 @@ final class ShapeOverlayView: UIView {
                 if let dst = node(near: d.end) { d.targetItemID = dst.id; d.end = anchor(on: dst, toward: d.start) }
             }
         } else if d.frame.width < minimal && d.frame.height < minimal {
-            draft = nil
-            return
+            // A tap (no real drag): drop a default-sized card for labelled items,
+            // otherwise discard the accidental dot.
+            guard d.kind.hasLabel else { draft = nil; return }
+            let size = defaultSize(for: d.kind)
+            d.frame = CGRect(x: dragStart.x, y: dragStart.y, width: size.width, height: size.height)
         }
         items.append(d)
         selectedID = d.id
         onChange(items)
+    }
+
+    /// Default footprint for a tapped (not dragged) labelled item.
+    private func defaultSize(for kind: ShapeKind) -> CGSize {
+        switch kind {
+        case .stickyNote: return CGSize(width: 160, height: 160)
+        case .decision: return CGSize(width: 160, height: 100)
+        default: return CGSize(width: 160, height: 64)
+        }
+    }
+
+    // MARK: - Text editing
+
+    @objc private func handleDoubleTap(_ gesture: UITapGestureRecognizer) {
+        let point = gesture.location(in: self)
+        guard let item = items.last(where: { $0.kind.hasLabel && hitTest($0, point: point) }) else { return }
+        presentTextEditor(for: item.id, current: item.text ?? "")
+    }
+
+    private func presentTextEditor(for id: UUID, current: String) {
+        // Walk the responder chain to find a view controller to present from.
+        var responder: UIResponder? = self
+        while let r = responder, !(r is UIViewController) { responder = r.next }
+        guard let presenter = responder as? UIViewController else { return }
+
+        let alert = UIAlertController(title: "Edit Text", message: nil, preferredStyle: .alert)
+        alert.addTextField { tf in
+            tf.text = current
+            tf.placeholder = "Text"
+            tf.autocapitalizationType = .sentences
+        }
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Done", style: .default) { [weak self] _ in
+            guard let self, let idx = self.items.firstIndex(where: { $0.id == id }) else { return }
+            self.items[idx].text = alert.textFields?.first?.text ?? ""
+            self.selectedID = id
+            self.onChange(self.items)
+            self.setNeedsDisplay()
+        })
+        presenter.present(alert, animated: true)
     }
 
     // MARK: - Selection

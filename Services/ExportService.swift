@@ -33,13 +33,15 @@ enum ExportService {
     // MARK: - PDF rendering
 
     private static func pdfData(for pages: [Page]) -> Data {
-        let bounds = CGRect(origin: .zero, size: PageGeometry.a4)
-        let renderer = UIGraphicsPDFRenderer(bounds: bounds)
+        let defaultBounds = CGRect(origin: .zero, size: PageGeometry.a4)
+        let renderer = UIGraphicsPDFRenderer(bounds: defaultBounds)
         return renderer.pdfData { ctx in
             for page in pages {
-                ctx.beginPage()
-                let image = PageRenderer.image(for: page, scale: 2)
-                image.draw(in: bounds)
+                // Each page gets a PDF page sized to its own canvas (supports
+                // extended / "infinite" tall pages).
+                let bounds = CGRect(origin: .zero, size: page.canvasSize)
+                ctx.beginPage(withBounds: bounds, pageInfo: [:])
+                PageRenderer.image(for: page, scale: 2).draw(in: bounds)
             }
             if pages.isEmpty { ctx.beginPage() }
         }

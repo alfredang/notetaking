@@ -10,6 +10,8 @@ enum ShapePath {
             return UIBezierPath(rect: item.frame)
         case .process:
             return UIBezierPath(roundedRect: item.frame, cornerRadius: 12)
+        case .stickyNote:
+            return UIBezierPath(roundedRect: item.frame, cornerRadius: 6)
         case .circle:
             return UIBezierPath(ovalIn: item.frame)
         case .startEnd:
