@@ -35,7 +35,7 @@ There is **no test target** (`testTargets: []`). CI (`.github/workflows/build.ym
 
 ## Persistence & iCloud sync
 
-- Two SwiftData `@Model`s: `Notebook` (self-referential parent/children nesting) and `Page`. The single `ModelContainer` is created in [App/NotePadApp.swift](App/NotePadApp.swift) and injected via `.modelContainer`.
+- Three SwiftData `@Model`s: `Notebook` (self-referential parent/children nesting), `Page`, and `AudioNote` (voice memos). The single `ModelContainer` is created in [App/NotePadApp.swift](App/NotePadApp.swift) and injected via `.modelContainer`; register every new model in its `Schema([...])`.
 - The store is **CloudKit-backed** (`cloudKitDatabase: .private("iCloud.com.notepad.app")`) — notebooks and pages auto-sync to the user's private iCloud DB. This imposes hard schema rules that are easy to break: **no `@Attribute(.unique)`**, every attribute must have a default value, and **every relationship must be optional** (that's why `Notebook.pages` / `Notebook.children` are `[Page]?` / `[Notebook]?`). Violating any of these makes the container fail to load and the app `fatalError`s at launch. Read array relationships through the non-optional `orderedPages` / `orderedChildren` accessors rather than touching the optionals directly.
 - CloudKit requires the iCloud entitlements in [App/NotePadApp.entitlements](App/NotePadApp.entitlements) and the `remote-notification` background mode in `Info.plist`; signing is Automatic (team selected in Xcode).
 
