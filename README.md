@@ -5,7 +5,12 @@ A clean, native iPad note-taking app optimized for Apple Pencil, with a
 blackboard templates, handwriting, shapes & flowcharts, PDF annotation, and
 notebook organization with tags — all synced across devices via iCloud.
 
+Published on the App Store as **Tertiary NotePad**, by **Tertiary Infotech
+Academy Pte Ltd**.
+
 ![Build](https://github.com/alfredang/notepadapp/actions/workflows/build.yml/badge.svg)
+![Platform](https://img.shields.io/badge/platform-iPadOS%2018%2B-blue)
+![Swift](https://img.shields.io/badge/Swift-6-orange)
 
 <p align="center">
   <img src="docs/screenshots/editor.png" alt="Editor with flowchart, sticky note and tool palette" width="45%" />
@@ -147,15 +152,19 @@ XcodeGen, generates the project, and compiles for the iOS Simulator on a macOS r
 
 ## Roadmap
 
-**Phase 2 — shipped:** iCloud sync · handwriting / OCR search · sticky notes ·
-audio notes · infinite (extendable) canvas · PDF annotation · notebook sharing.
-
-**Phase 3 — shipped:** GoodNotes-style top toolbar · white / blackboard
-templates (notebook-wide, with ink recolor) · inline multi-line text + element
-background colors · multi-stroke lasso · notebook tags & filtering · pull-to-add
+**Shipped:** GoodNotes-style top toolbar · handwriting with pressure/tilt ·
+shapes & flowcharts with snapping connectors · white / blackboard templates
+(notebook-wide, with ink recolor) · inline multi-line text + element background
+colors · multi-stroke lasso · iCloud (CloudKit) sync · handwriting / OCR search ·
+sticky notes · audio (voice-memo) notes · infinite extendable canvas · PDF import
+& annotation · `.notebook` sharing · notebook tags & filtering · pull-to-add
 pages · double-tap zoom · multi-select / drag-reorder pages · iPad HIG polish
-(keyboard shortcuts, hover, VoiceOver).
+(keyboard shortcuts, pointer hover, VoiceOver). Submitted to the App Store.
 
 **Next:** real-time collaboration (live CKShare co-editing — current sharing is
 file-based) · handwriting-to-text conversion · lined / grid paper templates ·
 web companion.
+
+---
+
+<p align="center">Powered by <strong>Tertiary Infotech Academy Pte Ltd</strong></p>
