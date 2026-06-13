@@ -76,6 +76,14 @@ struct DashboardView: View {
             }
         }
         .searchable(text: $viewModel.searchText, prompt: "Search notebooks & handwriting")
+        .safeAreaInset(edge: .bottom) {
+            Text("Powered by Tertiary Infotech Academy Pte Ltd")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(.bar)
+        }
         .toolbar { toolbarContent }
         .alert("New Notebook", isPresented: $showingNewNotebook) {
             TextField("Notebook name", text: $newNotebookName)
