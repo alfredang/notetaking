@@ -12,12 +12,13 @@ struct NotebookView: View {
     @State private var autoSave: AutoSaveService
     @State private var showSidebar = true
     @State private var showClearConfirm = false
+    @State private var showAudioNotes = false
     @State private var exportItem: ExportRequest?
 
     init(notebook: Notebook) {
         self.notebook = notebook
         // Build dependencies from the shared context.
-        let context = notebook.modelContext ?? ModelContext(try! ModelContainer(for: Notebook.self, Page.self))
+        let context = notebook.modelContext ?? ModelContext(try! ModelContainer(for: Notebook.self, Page.self, AudioNote.self))
         _notebookVM = State(initialValue: NotebookViewModel(
             notebook: notebook,
             repository: PageRepository(context: context)
@@ -61,6 +62,9 @@ struct NotebookView: View {
         .sheet(item: $exportItem) { request in
             ExportSheet(request: request)
         }
+        .sheet(isPresented: $showAudioNotes) {
+            AudioNotesView(notebook: notebook)
+        }
     }
 
     @ToolbarContentBuilder
@@ -77,6 +81,13 @@ struct NotebookView: View {
                 Image(systemName: "hand.draw")
             }
             .toggleStyle(.button)
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                showAudioNotes = true
+            } label: {
+                Image(systemName: "waveform")
+            }
         }
         ToolbarItem(placement: .topBarTrailing) {
             Button(role: .destructive) {

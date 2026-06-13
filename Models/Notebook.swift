@@ -27,6 +27,10 @@ final class Notebook {
     @Relationship(deleteRule: .cascade, inverse: \Page.notebook)
     var pages: [Page]? = []
 
+    /// Voice memos attached to this notebook. Deleting cascades to recordings.
+    @Relationship(deleteRule: .cascade, inverse: \AudioNote.notebook)
+    var audioNotes: [AudioNote]? = []
+
     init(
         id: UUID = UUID(),
         title: String,
@@ -55,6 +59,11 @@ final class Notebook {
     /// Child notebooks sorted for stable display.
     var orderedChildren: [Notebook] {
         (children ?? []).sorted { $0.sortIndex < $1.sortIndex }
+    }
+
+    /// Voice memos, newest first.
+    var orderedAudioNotes: [AudioNote] {
+        (audioNotes ?? []).sorted { $0.createdAt > $1.createdAt }
     }
 
     func touch(_ date: Date = .now) {
