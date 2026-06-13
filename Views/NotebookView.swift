@@ -52,9 +52,23 @@ struct NotebookView: View {
             controller.scrollToPage(newValue)
         }
         .onAppear {
-            // Swiping up past the last page appends a new blank page.
+            // Swiping up past the last page appends a new blank page; swiping
+            // down past the first page inserts one above.
             controller.requestNewPageAtEnd = {
                 notebookVM.addPageAtEnd()
+            }
+            controller.requestNewPageAtStart = {
+                notebookVM.insertPage(before: 0)
+            }
+            controller.requestNewPageAbove = {
+                let i = controller.currentVisiblePage()
+                    .flatMap { p in notebookVM.pages.firstIndex { $0.id == p.id } } ?? 0
+                notebookVM.insertPage(before: i)
+            }
+            controller.requestNewPageBelow = {
+                let i = controller.currentVisiblePage()
+                    .flatMap { p in notebookVM.pages.firstIndex { $0.id == p.id } } ?? (notebookVM.pages.count - 1)
+                notebookVM.insertPage(after: i)
             }
             editorVM.allowsFingerDrawing = allowsFingerDrawing
             // Default ink to the notebook's template so it's visible (white

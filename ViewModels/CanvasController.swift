@@ -28,6 +28,11 @@ final class CanvasController {
     var clearAllPages: () -> Void = {}
     /// Asks the host to append a new blank page at the end (swipe-up past bottom).
     var requestNewPageAtEnd: () -> Void = {}
+    /// Inserts a new blank page at the very start (swipe-down past the top).
+    var requestNewPageAtStart: () -> Void = {}
+    /// Inserts a new page just before / after the page currently in view.
+    var requestNewPageAbove: () -> Void = {}
+    var requestNewPageBelow: () -> Void = {}
     /// Recolors the currently selected shape/flowchart element.
     var setSelectedColor: (RGBAColor) -> Void = { _ in }
     /// The notebook's current paper template, and a setter that applies it

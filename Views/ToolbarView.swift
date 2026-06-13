@@ -213,13 +213,16 @@ struct ToolbarView: View {
             }
             .accessibilityLabel("Page template")
 
-            Button {
-                controller.requestNewPageAtEnd()
+            Menu {
+                Button { controller.requestNewPageAbove() } label: {
+                    Label("Add Page Above", systemImage: "arrow.up.to.line")
+                }
+                Button { controller.requestNewPageBelow() } label: {
+                    Label("Add Page Below", systemImage: "arrow.down.to.line")
+                }
             } label: {
                 barIcon("plus.rectangle.portrait")
             }
-            .buttonStyle(.plain)
-            .hoverEffect(.highlight)
             .accessibilityLabel("Add page")
 
             Menu {

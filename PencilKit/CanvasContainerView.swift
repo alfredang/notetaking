@@ -112,6 +112,7 @@ struct CanvasContainerView: UIViewRepresentable {
         private var didInitialFit = false
         private var autoFitScale: CGFloat = 0
         private var requestedNewPage = false
+        private var requestedNewPageTop = false
 
         init(editor: EditorViewModel, autoSave: AutoSaveService, controller: CanvasController) {
             self.editor = editor
@@ -384,13 +385,18 @@ struct CanvasContainerView: UIViewRepresentable {
         /// Swiping up past the end of the last page appends a new blank page
         /// (continuous, GoodNotes-style paging).
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
-            let overscroll = bottomOverscroll(scrollView)
-            if overscroll > 50 { appendPageOnce() }
-            else if overscroll < 12 { requestedNewPage = false }
+            let bottom = bottomOverscroll(scrollView)
+            if bottom > 50 { appendPageOnce() }
+            else if bottom < 12 { requestedNewPage = false }
+
+            let top = topOverscroll(scrollView)
+            if top > 50 { prependPageOnce() }
+            else if top < 12 { requestedNewPageTop = false }
         }
 
         func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
             if bottomOverscroll(scrollView) > 20 { appendPageOnce() }
+            if topOverscroll(scrollView) > 20 { prependPageOnce() }
         }
 
         private func bottomOverscroll(_ scrollView: UIScrollView) -> CGFloat {
@@ -399,10 +405,21 @@ struct CanvasContainerView: UIViewRepresentable {
                 - max(scrollView.contentSize.height, scrollView.bounds.height)
         }
 
+        private func topOverscroll(_ scrollView: UIScrollView) -> CGFloat {
+            // Distance pulled down beyond the top of the content.
+            -(scrollView.contentOffset.y + scrollView.contentInset.top)
+        }
+
         private func appendPageOnce() {
             guard !requestedNewPage else { return }
             requestedNewPage = true
             controller.requestNewPageAtEnd()
+        }
+
+        private func prependPageOnce() {
+            guard !requestedNewPageTop else { return }
+            requestedNewPageTop = true
+            controller.requestNewPageAtStart()
         }
 
         // MARK: UIPencilInteractionDelegate
