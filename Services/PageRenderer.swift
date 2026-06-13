@@ -36,8 +36,13 @@ enum PageRenderer {
             drawOverlay(items: page.items, in: ctx.cgContext)
 
             if let drawing = try? PKDrawing(data: page.drawingData) {
-                let inkImage = drawing.image(from: CGRect(origin: .zero, size: size), scale: scale)
-                inkImage.draw(in: CGRect(origin: .zero, size: size))
+                // Render ink with a light trait so PencilKit doesn't re-adapt the
+                // colors to dark mode — they match the on-screen page exactly.
+                var inkImage: UIImage?
+                UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
+                    inkImage = drawing.image(from: CGRect(origin: .zero, size: size), scale: scale)
+                }
+                inkImage?.draw(in: CGRect(origin: .zero, size: size))
             }
         }
     }
