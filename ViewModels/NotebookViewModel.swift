@@ -107,6 +107,21 @@ final class NotebookViewModel {
     /// The notebook's current template (the source of truth for new pages).
     var paperStyle: PaperStyle { notebook.paperStyle }
 
+    /// Deletes the pages with the given ids, always keeping at least one page.
+    func deletePages(ids: Set<UUID>) {
+        let targets = pages.filter { ids.contains($0.id) }
+        for page in targets {
+            guard pages.count > 1 else { break }
+            do {
+                try repository.delete(page, from: notebook)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+        if selectedPageIndex >= pages.count { selectedPageIndex = max(0, pages.count - 1) }
+        bump()
+    }
+
     func movePages(from source: IndexSet, to destination: Int) {
         do {
             try repository.move(in: notebook, from: source, to: destination)

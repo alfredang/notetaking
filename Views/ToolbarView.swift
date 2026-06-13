@@ -234,10 +234,14 @@ struct ToolbarView: View {
                     controller.clearAllPages()
                     controller.refreshThumbnails()
                 } label: { Label("Clear All Pages", systemImage: "trash") }
+                Divider()
+                Button(role: .destructive) {
+                    controller.deleteVisiblePage()
+                } label: { Label("Delete Current Page", systemImage: "rectangle.portrait.badge.minus") }
             } label: {
                 barIcon("trash")
             }
-            .accessibilityLabel("Clear")
+            .accessibilityLabel("Clear or delete page")
         }
     }
 

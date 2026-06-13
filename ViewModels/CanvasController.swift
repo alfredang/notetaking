@@ -26,6 +26,8 @@ final class CanvasController {
     var applyTool: () -> Void = {}
     /// Clears strokes and shapes on every page (live canvases + model).
     var clearAllPages: () -> Void = {}
+    /// Deletes the page currently in view (removes it entirely).
+    var deleteVisiblePage: () -> Void = {}
     /// Asks the host to append a new blank page at the end (swipe-up past bottom).
     var requestNewPageAtEnd: () -> Void = {}
     /// Inserts a new blank page at the very start (swipe-down past the top).

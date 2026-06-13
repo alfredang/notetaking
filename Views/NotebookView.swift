@@ -85,6 +85,9 @@ struct NotebookView: View {
                 editorVM.shapeStrokeColor = style.defaultInkColor
             }
             controller.refreshThumbnails = { notebookVM.bump() }
+            controller.deleteVisiblePage = {
+                if let p = controller.currentVisiblePage() { notebookVM.delete(p) }
+            }
         }
         .onChange(of: allowsFingerDrawing) { _, newValue in
             editorVM.allowsFingerDrawing = newValue
