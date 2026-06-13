@@ -75,14 +75,26 @@ struct ToolbarView: View {
         }
     }
 
+    // Icon-only palettes (minimalistic): a row of SF Symbols, not text rows.
+    private static let shapeSymbols: [(ShapeKind, String, String)] = [
+        (.rectangle, "rectangle", "Rectangle"), (.circle, "circle", "Circle"),
+        (.triangle, "triangle", "Triangle"), (.diamond, "diamond", "Diamond"),
+        (.line, "line.diagonal", "Line"), (.arrow, "line.diagonal.arrow", "Arrow")
+    ]
+    private static let flowchartSymbols: [(ShapeKind, String, String)] = [
+        (.process, "rectangle", "Process"), (.decision, "diamond", "Decision"),
+        (.startEnd, "capsule", "Start / End"), (.connector, "arrow.left.and.right", "Connector")
+    ]
+
     private var shapeMenu: some View {
         Menu {
-            shapeItem("Rectangle", .rectangle)
-            shapeItem("Circle", .circle)
-            shapeItem("Triangle", .triangle)
-            shapeItem("Diamond", .diamond)
-            shapeItem("Line", .line)
-            shapeItem("Arrow", .arrow)
+            Picker("Shape", selection: shapeKindBinding) {
+                ForEach(Self.shapeSymbols, id: \.0) { kind, symbol, name in
+                    Image(systemName: symbol).accessibilityLabel(name).tag(Optional(kind))
+                }
+            }
+            .pickerStyle(.palette)
+            .labelsHidden()
         } label: {
             menuLabel("square.on.circle", active: isShapeActive)
         }
@@ -91,20 +103,31 @@ struct ToolbarView: View {
 
     private var flowchartMenu: some View {
         Menu {
-            shapeItem("Process", .process)
-            shapeItem("Decision", .decision)
-            shapeItem("Start / End", .startEnd)
-            shapeItem("Connector", .connector)
+            Picker("Flowchart", selection: flowchartKindBinding) {
+                ForEach(Self.flowchartSymbols, id: \.0) { kind, symbol, name in
+                    Image(systemName: symbol).accessibilityLabel(name).tag(Optional(kind))
+                }
+            }
+            .pickerStyle(.palette)
+            .labelsHidden()
         } label: {
             menuLabel("flowchart", active: isFlowchartActive)
         }
         .accessibilityLabel("Flowchart")
     }
 
-    private func shapeItem(_ title: String, _ kind: ShapeKind) -> some View {
-        Button(title) {
-            editor.tool = kind.isNode || kind == .connector ? .flowchart(kind) : .shape(kind)
-        }
+    private var shapeKindBinding: Binding<ShapeKind?> {
+        Binding(
+            get: { if case .shape(let k) = editor.tool, k != .stickyNote { return k }; return nil },
+            set: { if let k = $0 { editor.tool = .shape(k) } }
+        )
+    }
+
+    private var flowchartKindBinding: Binding<ShapeKind?> {
+        Binding(
+            get: { if case .flowchart(let k) = editor.tool { return k }; return nil },
+            set: { if let k = $0 { editor.tool = .flowchart(k) } }
+        )
     }
 
     private func menuLabel(_ systemImage: String, active: Bool) -> some View {

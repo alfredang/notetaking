@@ -53,6 +53,9 @@ final class ShapeOverlayView: UIView {
     private var didMove = false
     private lazy var editMenuInteraction = UIEditMenuInteraction(delegate: self)
 
+    /// Applies a color picked from the system color wheel to the active selection.
+    private var pendingColorApply: ((RGBAColor) -> Void)?
+
     // Inline text editor (type directly into a sticky note / labelled shape).
     private weak var activeTextView: UITextView?
     private var editingItemID: UUID?
@@ -661,23 +664,29 @@ extension ShapeOverlayView: UIEditMenuInteractionDelegate {
                              suggestedActions: [UIMenuElement]) -> UIMenu? {
         // Handwriting (ink) selection: recolor or delete the lasso group.
         if selectedID == nil, inkSelectionRect != nil {
-            let names = ["Black", "Blue", "Red", "Green", "Orange", "Purple", "Yellow", "Gray"]
-            let colorActions = zip(ToolDefaults.palette, names).map { color, name in
-                UIAction(title: name, image: ShapeOverlayView.swatch(color.uiColor)) { [weak self] _ in
+            let colorActions = ToolDefaults.extendedPalette.map { color in
+                UIAction(title: "", image: ShapeOverlayView.swatch(color.uiColor)) { [weak self] _ in
                     self?.recolorSelectedInk(color)
                     self?.clearInkSelectionState()
                     self?.setNeedsDisplay()
                 }
             }
-            let colorMenu = UIMenu(title: "Color", image: UIImage(systemName: "paintpalette"),
-                                   children: colorActions)
+            // Inline + .small lays the swatches out as a grid, like the toolbar's
+            // color dropdown.
+            let palette = UIMenu(options: .displayInline, children: colorActions)
+            palette.preferredElementSize = .small
+            let custom = UIAction(title: "Custom…", image: UIImage(systemName: "eyedropper")) { [weak self] _ in
+                self?.presentCustomColorPicker(current: .black) { [weak self] c in
+                    self?.recolorSelectedInk(c)
+                }
+            }
             let delete = UIAction(title: "Delete", image: UIImage(systemName: "trash"),
                                   attributes: .destructive) { [weak self] _ in
                 self?.deleteSelectedInk()
                 self?.clearInkSelectionState()
                 self?.setNeedsDisplay()
             }
-            return UIMenu(children: [colorMenu, delete])
+            return UIMenu(children: [palette, custom, delete])
         }
 
         guard selectedID != nil else { return nil }
@@ -686,27 +695,78 @@ extension ShapeOverlayView: UIEditMenuInteractionDelegate {
                                  image: UIImage(systemName: "plus.square.on.square")) { [weak self] _ in
             self?.duplicateSelected()
         }
-        let colorNames = ["Black", "Blue", "Red", "Green", "Orange", "Purple", "Yellow", "Gray"]
-        let colorActions = zip(ToolDefaults.palette, colorNames).map { color, name in
-            UIAction(title: name, image: ShapeOverlayView.swatch(color.uiColor)) { [weak self] _ in
+        let colorActions = ToolDefaults.extendedPalette.map { color in
+            UIAction(title: "", image: ShapeOverlayView.swatch(color.uiColor)) { [weak self] _ in
                 self?.setSelectedColor(color)
             }
         }
-        let colorMenu = UIMenu(title: "Color", image: UIImage(systemName: "paintpalette"),
-                               children: colorActions)
+        // Inline + .small lays the swatches out as a grid, like the toolbar's
+        // color dropdown.
+        let palette = UIMenu(options: .displayInline, children: colorActions)
+        palette.preferredElementSize = .small
+        let custom = UIAction(title: "Custom…", image: UIImage(systemName: "eyedropper")) { [weak self] _ in
+            self?.presentCustomColorPicker(current: .black) { [weak self] c in
+                self?.setSelectedColor(c)
+            }
+        }
         let delete = UIAction(title: "Delete", image: UIImage(systemName: "trash"),
                               attributes: .destructive) { [weak self] _ in
             self?.deleteSelected()
         }
-        return UIMenu(children: [duplicate, colorMenu, delete])
+        return UIMenu(children: [duplicate, palette, custom, delete])
     }
 
-    /// A small filled-circle image used as a color menu icon.
+    /// A small filled-circle image used as a color menu swatch (with a hairline
+    /// border so white / light colors stay visible on the menu background).
     private static func swatch(_ color: UIColor) -> UIImage {
-        let size = CGSize(width: 18, height: 18)
+        let size = CGSize(width: 22, height: 22)
         return UIGraphicsImageRenderer(size: size).image { ctx in
+            let rect = CGRect(origin: .zero, size: size).insetBy(dx: 1.5, dy: 1.5)
             color.setFill()
-            ctx.cgContext.fillEllipse(in: CGRect(origin: .zero, size: size))
+            ctx.cgContext.fillEllipse(in: rect)
+            UIColor.separator.setStroke()
+            ctx.cgContext.setLineWidth(1)
+            ctx.cgContext.strokeEllipse(in: rect)
         }.withRenderingMode(.alwaysOriginal)
+    }
+}
+
+// MARK: - Custom color picker (system color wheel for arbitrary colors)
+
+extension ShapeOverlayView: UIColorPickerViewControllerDelegate {
+    /// Presents the system color picker; the chosen color is applied via `apply`.
+    func presentCustomColorPicker(current: UIColor, apply: @escaping (RGBAColor) -> Void) {
+        guard let vc = nearestViewController() else { return }
+        pendingColorApply = apply
+        let picker = UIColorPickerViewController()
+        picker.selectedColor = current
+        picker.supportsAlpha = false
+        picker.delegate = self
+        vc.present(picker, animated: true)
+    }
+
+    private func nearestViewController() -> UIViewController? {
+        var responder: UIResponder? = next
+        while let current = responder {
+            if let vc = current as? UIViewController { return vc }
+            responder = current.next
+        }
+        return nil
+    }
+
+    func colorPickerViewController(_ viewController: UIColorPickerViewController,
+                                   didSelect color: UIColor, continuously: Bool) {
+        pendingColorApply?(ShapeOverlayView.rgba(from: color))
+        setNeedsDisplay()
+    }
+
+    func colorPickerViewControllerDidFinish(_ viewController: UIColorPickerViewController) {
+        pendingColorApply = nil
+    }
+
+    private static func rgba(from c: UIColor) -> RGBAColor {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        c.getRed(&r, green: &g, blue: &b, alpha: &a)
+        return RGBAColor(red: Double(r), green: Double(g), blue: Double(b), alpha: Double(a))
     }
 }
