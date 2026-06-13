@@ -25,7 +25,12 @@ final class EditorViewModel {
     // Canvas
     var zoomScale: CGFloat = 1
     /// Whether fingers can draw (otherwise fingers pan/zoom, Pencil draws).
-    var allowsFingerDrawing: Bool = false
+    /// Defaults to on so handwriting works out of the box even without a paired
+    /// Apple Pencil; a single finger draws, two fingers pan/zoom.
+    var allowsFingerDrawing: Bool = true
+
+    /// Hides the floating tool palette (toggled by a double-tap on the Pencil).
+    var isPaletteHidden: Bool = false
 
     /// The PencilKit tool resolved from the current state.
     var pkTool: PKTool {
@@ -49,6 +54,13 @@ final class EditorViewModel {
     /// The drawing policy: pencil-only unless the user opts into finger drawing.
     var drawingPolicy: PKCanvasViewDrawingPolicy {
         allowsFingerDrawing ? .anyInput : .pencilOnly
+    }
+
+    /// A value that changes whenever any tool/ink setting changes. The editor's
+    /// canvas host reads this so SwiftUI re-renders (and pushes the new tool to
+    /// the `PKCanvasView`) the moment the user picks a tool, color, or width.
+    var toolStateToken: String {
+        "\(tool)|\(penColor)|\(penWidth)|\(highlighterColor)|\(highlighterWidth)|\(eraserWidth)|\(allowsFingerDrawing)"
     }
 
     /// Style for a newly created overlay item using the current settings.

@@ -9,6 +9,9 @@ struct CanvasContainerView: UIViewRepresentable {
     let autoSave: AutoSaveService
     /// Bumped when the page set changes (add/delete/reorder/clear) to force rebuild.
     let structureToken: Int
+    /// Changes whenever a tool/ink setting changes; the host view reads it so
+    /// SwiftUI re-renders and `updateUIView` pushes the new tool to the canvas.
+    let toolStateToken: String
     /// Lets the toolbar drive imperative selection actions on the overlays.
     let controller: CanvasController
 
@@ -19,11 +22,16 @@ struct CanvasContainerView: UIViewRepresentable {
     func makeUIView(context: Context) -> UIScrollView {
         let scrollView = UIScrollView()
         scrollView.backgroundColor = UIColor(white: 0.93, alpha: 1)
-        scrollView.minimumZoomScale = 0.25
+        scrollView.minimumZoomScale = 0.15
         scrollView.maximumZoomScale = 5.0
         scrollView.delegate = context.coordinator
         scrollView.alwaysBounceVertical = true
         scrollView.showsVerticalScrollIndicator = true
+
+        // Double-tap (or squeeze) on the Apple Pencil toggles the tool palette.
+        let pencilInteraction = UIPencilInteraction()
+        pencilInteraction.delegate = context.coordinator
+        scrollView.addInteraction(pencilInteraction)
 
         let stack = UIStackView()
         stack.axis = .vertical
@@ -53,12 +61,13 @@ struct CanvasContainerView: UIViewRepresentable {
             context.coordinator.rebuild(pages: pages)
         }
         context.coordinator.applyTool()
+        context.coordinator.fitToPageIfNeeded()
     }
 
     // MARK: - Coordinator
 
     @MainActor
-    final class Coordinator: NSObject, UIScrollViewDelegate, PKCanvasViewDelegate {
+    final class Coordinator: NSObject, UIScrollViewDelegate, PKCanvasViewDelegate, UIPencilInteractionDelegate {
         var editor: EditorViewModel
         let autoSave: AutoSaveService
         let controller: CanvasController
@@ -68,6 +77,7 @@ struct CanvasContainerView: UIViewRepresentable {
         weak var stack: UIStackView?
         private var pageViews: [PageContainerView] = []
         private var pageForCanvas: [ObjectIdentifier: Page] = [:]
+        private var didInitialFit = false
 
         init(editor: EditorViewModel, autoSave: AutoSaveService, controller: CanvasController) {
             self.editor = editor
@@ -90,8 +100,17 @@ struct CanvasContainerView: UIViewRepresentable {
             controller.reload = { [weak self] page in
                 self?.pageViews.first { $0.page.id == page.id }?.reloadFromModel()
             }
-            controller.undo = { [weak self] in self?.scrollView?.undoManager?.undo() }
-            controller.redo = { [weak self] in self?.scrollView?.undoManager?.redo() }
+            // Undo/redo act on the canvas the user is currently viewing. Each
+            // canvas owns its own UndoManager (see StrokeCanvasView), so this
+            // reliably reverses the strokes drawn on that page.
+            controller.undo = { [weak self] in
+                let canvas = self?.mostVisiblePageView()?.canvas
+                if canvas?.undoManager?.canUndo == true { canvas?.undoManager?.undo() }
+            }
+            controller.redo = { [weak self] in
+                let canvas = self?.mostVisiblePageView()?.canvas
+                if canvas?.undoManager?.canRedo == true { canvas?.undoManager?.redo() }
+            }
             controller.setZoom = { [weak self] scale in
                 self?.scrollView?.setZoomScale(scale, animated: true)
             }
@@ -102,6 +121,51 @@ struct CanvasContainerView: UIViewRepresentable {
                 let rect = target.convert(target.bounds, to: scrollView)
                 scrollView.scrollRectToVisible(rect.insetBy(dx: 0, dy: -28), animated: true)
             }
+            controller.currentVisiblePage = { [weak self] in self?.mostVisiblePageView()?.page }
+            controller.clearVisiblePage = { [weak self] in self?.clearVisiblePage() }
+        }
+
+        /// Clears the on-screen canvas + overlay for the visible page and persists it.
+        private func clearVisiblePage() {
+            guard let pv = mostVisiblePageView() else { return }
+            pv.canvas.drawing = PKDrawing()
+            pv.canvas.undoManager?.removeAllActions()
+            pv.overlay.items = []
+            pv.page.drawingData = Data()
+            pv.page.shapesData = Data()
+            pv.page.touch()
+            autoSave.saveNow()
+        }
+
+        /// Zooms so the whole first page is visible the first time the editor
+        /// lays out (so notes open showing the full page, not a zoomed-in corner).
+        func fitToPageIfNeeded() {
+            guard !didInitialFit, let scrollView, let pv = pageViews.first else { return }
+            let bounds = scrollView.bounds.size
+            guard bounds.width > 1, bounds.height > 1 else { return }
+            let pageSize = pv.page.canvasSize
+            let inset: CGFloat = 56 // top/bottom + leading/trailing stack padding
+            let scale = min((bounds.width - inset) / pageSize.width,
+                            (bounds.height - inset) / pageSize.height)
+            let clamped = max(scrollView.minimumZoomScale, min(scrollView.maximumZoomScale, scale))
+            scrollView.setZoomScale(clamped, animated: false)
+            editor.zoomScale = clamped
+            didInitialFit = true
+        }
+
+        /// The page view occupying the most of the scroll view's viewport.
+        private func mostVisiblePageView() -> PageContainerView? {
+            guard let scrollView else { return pageViews.first }
+            let visible = CGRect(origin: scrollView.contentOffset, size: scrollView.bounds.size)
+            var best: (view: PageContainerView, area: CGFloat)?
+            for pv in pageViews {
+                let frame = pv.convert(pv.bounds, to: scrollView)
+                let overlap = frame.intersection(visible)
+                guard !overlap.isNull else { continue }
+                let area = overlap.width * overlap.height
+                if best == nil || area > best!.area { best = (pv, area) }
+            }
+            return best?.view ?? pageViews.first
         }
 
         func rebuild(pages: [Page]) {
@@ -139,6 +203,12 @@ struct CanvasContainerView: UIViewRepresentable {
             let isOverlay = tool.isOverlayTool
             scrollView?.isScrollEnabled = !isOverlay
             scrollView?.pinchGestureRecognizer?.isEnabled = !isOverlay
+            // When finger drawing is enabled a single finger must DRAW, not pan —
+            // otherwise the scroll view's pan gesture steals the touch from the
+            // canvas and nothing gets inked. Require two fingers to pan in that
+            // mode; with Pencil-only drawing a single finger keeps panning.
+            scrollView?.panGestureRecognizer.minimumNumberOfTouches =
+                (editor.allowsFingerDrawing && !isOverlay) ? 2 : 1
 
             for pv in pageViews {
                 pv.canvas.tool = editor.pkTool
@@ -154,6 +224,20 @@ struct CanvasContainerView: UIViewRepresentable {
 
         func scrollViewDidZoom(_ scrollView: UIScrollView) {
             editor.zoomScale = scrollView.zoomScale
+        }
+
+        // MARK: UIPencilInteractionDelegate
+
+        /// Apple Pencil double-tap / squeeze — hides or shows the tool palette
+        /// when the user has enabled that gesture in Settings (default on).
+        func pencilInteraction(_ interaction: UIPencilInteraction, didReceiveTap tap: UIPencilInteraction.Tap) {
+            togglePaletteIfEnabled()
+        }
+
+        private func togglePaletteIfEnabled() {
+            let enabled = UserDefaults.standard.object(forKey: "pencilDoubleTapHidesPalette") as? Bool ?? true
+            guard enabled else { return }
+            editor.isPaletteHidden.toggle()
         }
 
         // MARK: PKCanvasViewDelegate

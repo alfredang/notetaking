@@ -11,7 +11,7 @@ struct NotebookView: View {
     @State private var editorVM = EditorViewModel()
     @State private var controller = CanvasController()
     @State private var autoSave: AutoSaveService
-    @State private var showSidebar = true
+    @State private var showSidebar = false
     @State private var showClearConfirm = false
     @State private var showAudioNotes = false
     @State private var showPDFImporter = false
@@ -52,14 +52,12 @@ struct NotebookView: View {
         .onDisappear { autoSave.saveNow() }
         .confirmationDialog("Clear this page?", isPresented: $showClearConfirm, titleVisibility: .visible) {
             Button("Clear Page", role: .destructive) {
-                if let page = notebookVM.selectedPage {
-                    notebookVM.clear(page)
-                    controller.reload(page)
-                }
+                controller.clearVisiblePage()
+                notebookVM.bump()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This removes all strokes and shapes on the current page.")
+            Text("This removes all strokes and shapes on the page you're viewing.")
         }
         .sheet(item: $exportItem) { request in
             ExportSheet(request: request)
@@ -73,6 +71,20 @@ struct NotebookView: View {
                 controller.scrollToPage(notebookVM.selectedPageIndex)
             }
         }
+    }
+
+    /// Binds the template picker to the page the user is currently viewing,
+    /// switching the default ink so strokes stay visible on the new surface.
+    private var paperStyleBinding: Binding<PaperStyle> {
+        Binding(
+            get: { (controller.currentVisiblePage() ?? notebookVM.selectedPage)?.paperStyle ?? .white },
+            set: { newStyle in
+                guard let page = controller.currentVisiblePage() ?? notebookVM.selectedPage else { return }
+                notebookVM.setPaperStyle(newStyle, on: page)
+                controller.reload(page)
+                editorVM.penColor = newStyle.defaultInkColor
+            }
+        )
     }
 
     @ToolbarContentBuilder
@@ -101,6 +113,19 @@ struct NotebookView: View {
                 } label: { Label("Reset Page Height", systemImage: "arrow.up.to.line") }
             } label: {
                 Image(systemName: "rectangle.expand.vertical")
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Picker("Template", selection: paperStyleBinding) {
+                    ForEach(PaperStyle.allCases) { style in
+                        Label(style.displayName,
+                              systemImage: style == .blackboard ? "rectangle.fill" : "rectangle")
+                            .tag(style)
+                    }
+                }
+            } label: {
+                Image(systemName: "square.grid.2x2")
             }
         }
         ToolbarItem(placement: .topBarTrailing) {

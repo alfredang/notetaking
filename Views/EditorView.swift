@@ -17,13 +17,17 @@ struct EditorView: View {
                 editor: editor,
                 autoSave: autoSave,
                 structureToken: structureToken,
+                toolStateToken: editor.toolStateToken,
                 controller: controller
             )
             .ignoresSafeArea(edges: .bottom)
 
-            ToolbarView(editor: editor, controller: controller)
-                .padding(.trailing, 16)
-                .padding(.top, 16)
+            if !editor.isPaletteHidden {
+                ToolbarView(editor: editor, controller: controller)
+                    .padding(.trailing, 16)
+                    .padding(.top, 16)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
 
             zoomControls
                 .padding(16)

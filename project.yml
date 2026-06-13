@@ -1,6 +1,6 @@
 name: NotePadApp
 options:
-  bundleIdPrefix: com.notepad
+  bundleIdPrefix: com.tertiaryinfotech
   deploymentTarget:
     iOS: "18.0"
   developmentLanguage: en
@@ -32,7 +32,7 @@ targets:
       - path: Resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.notepad.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.tertiaryinfotech.notepadapp
         INFOPLIST_FILE: App/Info.plist
         CODE_SIGN_ENTITLEMENTS: App/NotePadApp.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

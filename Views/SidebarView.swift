@@ -33,13 +33,13 @@ struct SidebarView: View {
             .listStyle(.plain)
             .environment(\.editMode, .constant(.active))
         }
-        .frame(width: 200)
+        .frame(width: 132)
         .background(Color(.secondarySystemBackground))
     }
 
     private func pageRow(index: Int, page: Page) -> some View {
         VStack(spacing: 4) {
-            ThumbnailView(page: page, maxWidth: 150, refreshToken: viewModel.refreshToken)
+            ThumbnailView(page: page, maxWidth: 96, refreshToken: viewModel.refreshToken)
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.pageCornerRadius)
                         .stroke(Color.accentColor, lineWidth: index == viewModel.selectedPageIndex ? 3 : 0)

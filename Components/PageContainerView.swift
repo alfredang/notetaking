@@ -1,6 +1,14 @@
 import UIKit
 import PencilKit
 
+/// A `PKCanvasView` that owns its own undo manager so undo/redo reverse the
+/// strokes drawn on this specific page (the responder-chain undo manager is
+/// unreliable inside a SwiftUI hierarchy).
+final class StrokeCanvasView: PKCanvasView {
+    private let strokeUndoManager = UndoManager()
+    override var undoManager: UndoManager? { strokeUndoManager }
+}
+
 /// A single A4 page: white rounded card hosting a PencilKit canvas with a
 /// vector overlay on top.
 final class PageContainerView: UIView {
@@ -13,7 +21,7 @@ final class PageContainerView: UIView {
     init(page: Page) {
         self.page = page
         let pageSize = page.canvasSize
-        self.canvas = PKCanvasView(frame: CGRect(origin: .zero, size: pageSize))
+        self.canvas = StrokeCanvasView(frame: CGRect(origin: .zero, size: pageSize))
         self.overlay = ShapeOverlayView(frame: CGRect(origin: .zero, size: pageSize))
         super.init(frame: CGRect(origin: .zero, size: pageSize))
 
@@ -23,8 +31,8 @@ final class PageContainerView: UIView {
         layer.shadowRadius = 10
         layer.shadowOffset = CGSize(width: 0, height: 4)
 
-        // White rounded paper.
-        contentView.backgroundColor = .white
+        // Paper surface (white paper or dark blackboard).
+        contentView.backgroundColor = PageContainerView.surfaceColor(for: page.paperStyle)
         contentView.layer.cornerRadius = Theme.pageCornerRadius
         contentView.clipsToBounds = true
         contentView.frame = bounds
@@ -63,12 +71,23 @@ final class PageContainerView: UIView {
 
     /// Reloads visual content from the model (after clear / external change).
     func reloadFromModel() {
-        if let drawing = try? PKDrawing(data: page.drawingData) {
+        if page.drawingData.isEmpty {
+            canvas.drawing = PKDrawing()
+        } else if let drawing = try? PKDrawing(data: page.drawingData) {
             canvas.drawing = drawing
         } else {
             canvas.drawing = PKDrawing()
         }
         overlay.items = page.items
         backgroundImageView.image = page.backgroundData.isEmpty ? nil : UIImage(data: page.backgroundData)
+        contentView.backgroundColor = PageContainerView.surfaceColor(for: page.paperStyle)
+    }
+
+    /// The fill color for a given paper template.
+    static func surfaceColor(for style: PaperStyle) -> UIColor {
+        switch style {
+        case .white: .white
+        case .blackboard: UIColor(red: 0.09, green: 0.16, blue: 0.13, alpha: 1) // chalkboard green-black
+        }
     }
 }

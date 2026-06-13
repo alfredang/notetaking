@@ -2,6 +2,30 @@ import Foundation
 import SwiftData
 import CoreGraphics
 
+/// Visual template for a page's paper surface.
+enum PaperStyle: String, CaseIterable, Identifiable, Sendable {
+    case white
+    case blackboard
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .white: "White"
+        case .blackboard: "Blackboard"
+        }
+    }
+
+    /// A sensible default ink color so strokes are visible on this surface
+    /// (dark ink on white paper, white chalk on a blackboard).
+    var defaultInkColor: RGBAColor {
+        switch self {
+        case .white: .black
+        case .blackboard: RGBAColor(red: 1, green: 1, blue: 1)
+        }
+    }
+}
+
 /// A single A4 page. Stores the PencilKit drawing as raw data and the vector
 /// overlay items as JSON-encoded `Data`.
 @Model
@@ -31,6 +55,10 @@ final class Page {
     /// values give an extended, continuous ("infinite") vertical canvas.
     var heightUnits: Int = 1
 
+    /// The page's paper template (white paper vs. dark blackboard). Stored as a
+    /// raw string for CloudKit compatibility; read through `paperStyle`.
+    var paperStyleRaw: String = PaperStyle.white.rawValue
+
     /// Owning notebook (inverse of `Notebook.pages`).
     var notebook: Notebook?
 
@@ -44,6 +72,7 @@ final class Page {
         recognizedText: String = "",
         backgroundData: Data = Data(),
         heightUnits: Int = 1,
+        paperStyle: PaperStyle = .white,
         notebook: Notebook? = nil
     ) {
         self.id = id
@@ -55,7 +84,14 @@ final class Page {
         self.recognizedText = recognizedText
         self.backgroundData = backgroundData
         self.heightUnits = heightUnits
+        self.paperStyleRaw = paperStyle.rawValue
         self.notebook = notebook
+    }
+
+    /// The page's paper template, derived from `paperStyleRaw`.
+    var paperStyle: PaperStyle {
+        get { PaperStyle(rawValue: paperStyleRaw) ?? .white }
+        set { paperStyleRaw = newValue.rawValue }
     }
 
     /// The page's canvas size in points — A4 width, height scaled by `heightUnits`.

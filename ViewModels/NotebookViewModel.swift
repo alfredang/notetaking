@@ -72,6 +72,14 @@ final class NotebookViewModel {
         }
     }
 
+    /// Switches a page's paper template (white paper / blackboard).
+    func setPaperStyle(_ style: PaperStyle, on page: Page) {
+        page.paperStyle = style
+        page.touch()
+        try? repository.save()
+        bump()
+    }
+
     func movePages(from source: IndexSet, to destination: Int) {
         do {
             try repository.move(in: notebook, from: source, to: destination)

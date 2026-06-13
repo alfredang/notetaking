@@ -54,7 +54,7 @@
 	<array>
 		<dict>
 			<key>UTTypeIdentifier</key>
-			<string>com.notepad.app.notebook</string>
+			<string>com.tertiaryinfotech.notepadapp.notebook</string>
 			<key>UTTypeDescription</key>
 			<string>NotePad Notebook</string>
 			<key>UTTypeConformsTo</key>

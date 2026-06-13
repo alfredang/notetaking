@@ -16,7 +16,7 @@ struct NotePadApp: App {
                 schema: schema,
                 isStoredInMemoryOnly: false,
                 allowsSave: true,
-                cloudKitDatabase: .private("iCloud.com.notepad.app")
+                cloudKitDatabase: .private("iCloud.com.tertiaryinfotech.notepadapp")
             )
             container = try ModelContainer(for: schema, configurations: [configuration])
         } catch {

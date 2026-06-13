@@ -32,7 +32,7 @@ enum NotebookArchiveService {
     static let fileExtension = "notebook"
 
     /// The custom document type (declared in Info.plist), falling back to data.
-    static var contentType: UTType { UTType("com.notepad.app.notebook") ?? .data }
+    static var contentType: UTType { UTType("com.tertiaryinfotech.notepadapp.notebook") ?? .data }
 
     /// Writes the notebook to a temp `.notebook` file and returns its URL.
     static func export(_ notebook: Notebook) throws -> URL {
