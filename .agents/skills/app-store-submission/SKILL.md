@@ -13,8 +13,8 @@ Submit a native iOS/iPadOS app to the App Store with the **App Store Connect (AS
 and the **Xcode command line**, doing as much as possible programmatically. This skill
 captures a complete, repeatable workflow plus the non-obvious blockers that waste hours.
 
-Use the bundled scripts in [scripts/](scripts/). A fully worked example (the NotePad app)
-is in [APP_STORE_SUBMISSION.md](APP_STORE_SUBMISSION.md).
+Use the bundled scripts in [scripts/](scripts/). Per-project values and the metadata copy
+go in the project's `.env` and the template at the end of this doc.
 
 ## What the API CAN and CANNOT do
 
@@ -159,7 +159,40 @@ review the Development→Production diff and **Deploy**.
 - **Empty draft review submissions** created during testing can't be deleted via API (403).
   Ignore them or remove in the UI.
 
-## Per-project values to fill in
-Keep these in the project's own `APP_STORE_SUBMISSION.md` (copy the bundled one as a template):
-app name, **App ID** (numeric ASC id), bundle id, iCloud container, team id, category,
-version/build numbers, and the metadata block (description/keywords/subtitle/URLs).
+## Screenshot display types (common)
+
+| Device | `screenshotDisplayType` | Required size (px) |
+|---|---|---|
+| iPad 13" / 12.9" | `APP_IPAD_PRO_3GEN_129` | 2064×2752 or 2048×2732 (portrait) |
+| iPhone 6.9" | `APP_IPHONE_67` | 1290×2796 |
+| iPhone 6.5" (legacy, the quirk) | `APP_IPHONE_65` | 1242×2688 or 1284×2778 |
+
+Only the **first 3** screenshots per set appear on the install sheet.
+
+## Per-project template
+
+Fill these per app — keep them in the project's `.env` (credentials/URLs/contact) and a short
+note in the repo (identity + the marketing copy). Example values from NotePad shown.
+
+```
+App name:        Tertiary NotePad
+App ID (ASC):    6779909944               # numeric; resolved from bundle id if blank
+Bundle ID:       com.tertiaryinfotech.notepadapp
+iCloud container: iCloud.com.tertiaryinfotech.notepadapp   # if using CloudKit
+Team ID:         GU9WTSTX9M
+Platform:        iPadOS 18+ (iPad only, TARGETED_DEVICE_FAMILY=2)
+Category:        Productivity (secondary: Education)
+Price:           Free
+Version / Build: 1.0 / 2
+```
+
+Marketing copy to paste into the version localization (subtitle ≤30 chars, keywords ≤100
+chars CSV, promo text ≤170 chars, description ≤4000 chars):
+
+```
+Subtitle:    Apple Pencil notes & flowcharts
+Keywords:    notes,handwriting,apple pencil,notebook,flowchart,pdf,annotate,blackboard,ipad
+Promo text:  A fast, native iPad notebook for Apple Pencil — handwriting, shapes,
+             flowcharts, PDF markup, and blackboard mode, synced with iCloud.
+Description: <full long description>
+```

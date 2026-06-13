@@ -31,8 +31,7 @@ Connect API + Xcode CLI. Captures the full sequence and the non-obvious blockers
   can't auto-create them — exercise every model in a Debug build, then re-deploy.
 
 ## Files
-- `SKILL.md` — full procedure, blocker cheat-sheet, prerequisites.
-- `APP_STORE_SUBMISSION.md` — worked example (NotePad); copy as a per-project template.
+- `SKILL.md` — full procedure, blocker cheat-sheet, prerequisites, per-project template.
 - `scripts/asc_jwt.swift` — ES256 JWT from env (`.p8` stays outside the repo).
 - `scripts/asc_submit.py` — `status | set-metadata | review-contact | attach-build | screenshots | submit`.
 - `scripts/make_iphone_screenshot.swift`, `scripts/make_app_icon.swift` — asset generators.
