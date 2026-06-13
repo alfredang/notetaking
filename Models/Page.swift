@@ -5,16 +5,18 @@ import SwiftData
 /// overlay items as JSON-encoded `Data`.
 @Model
 final class Page {
-    @Attribute(.unique) var id: UUID
-    var pageIndex: Int
-    var createdAt: Date
-    var updatedAt: Date
+    // CloudKit requires every attribute to be optional or carry a default value,
+    // and forbids `.unique` constraints — UUIDs stay unique by generation.
+    var id: UUID = UUID()
+    var pageIndex: Int = 0
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
 
     /// Serialized `PKDrawing` (`drawing.dataRepresentation()`).
-    @Attribute(.externalStorage) var drawingData: Data
+    @Attribute(.externalStorage) var drawingData: Data = Data()
 
     /// JSON-encoded `[CanvasItem]` for the shape/flowchart overlay.
-    @Attribute(.externalStorage) var shapesData: Data
+    @Attribute(.externalStorage) var shapesData: Data = Data()
 
     /// Owning notebook (inverse of `Notebook.pages`).
     var notebook: Notebook?

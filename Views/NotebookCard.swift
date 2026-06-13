@@ -35,8 +35,8 @@ struct NotebookCard: View {
                 Image(systemName: "doc.on.doc")
                     .imageScale(.small)
                 Text("\(notebook.pageCount) pages")
-                if notebook.children.count > 0 {
-                    Text("· \(notebook.children.count) folders")
+                if notebook.orderedChildren.count > 0 {
+                    Text("· \(notebook.orderedChildren.count) folders")
                 }
             }
             .font(.caption)
@@ -53,7 +53,7 @@ struct NotebookCard: View {
         )
         .contextMenu {
             Button { onOpen() } label: { Label("Open", systemImage: "book") }
-            if notebook.children.count > 0 {
+            if notebook.orderedChildren.count > 0 {
                 Button { onOpenFolder() } label: { Label("Open Sub-Notebooks", systemImage: "folder") }
             }
             Button { beginRename() } label: { Label("Rename", systemImage: "pencil") }

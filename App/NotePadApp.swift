@@ -10,10 +10,13 @@ struct NotePadApp: App {
     init() {
         do {
             let schema = Schema([Notebook.self, Page.self])
+            // Back the store with the user's private CloudKit database so every
+            // notebook and page auto-saves and syncs across their devices.
             let configuration = ModelConfiguration(
                 schema: schema,
                 isStoredInMemoryOnly: false,
-                allowsSave: true
+                allowsSave: true,
+                cloudKitDatabase: .private("iCloud.com.notepad.app")
             )
             container = try ModelContainer(for: schema, configurations: [configuration])
         } catch {

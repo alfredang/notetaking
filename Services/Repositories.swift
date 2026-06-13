@@ -61,7 +61,7 @@ final class NotebookRepository: NotebookRepositoryProtocol {
 
     @discardableResult
     func create(title: String, parent: Notebook?) throws(StorageError) -> Notebook {
-        let siblingsCount = parent?.children.count ?? (try? allTopLevel(sortedBy: .createdDate).count) ?? 0
+        let siblingsCount = parent?.children?.count ?? (try? allTopLevel(sortedBy: .createdDate).count) ?? 0
         let notebook = Notebook(title: title, sortIndex: siblingsCount, parent: parent)
         context.insert(notebook)
         parent?.touch()
@@ -97,7 +97,7 @@ final class NotebookRepository: NotebookRepositoryProtocol {
                 notebook: copy
             )
             context.insert(pageCopy)
-            copy.pages.append(pageCopy)
+            copy.pages = (copy.pages ?? []) + [pageCopy]
         }
         try save()
         return copy

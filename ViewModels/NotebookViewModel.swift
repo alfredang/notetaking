@@ -18,7 +18,7 @@ final class NotebookViewModel {
         self.notebook = notebook
         self.repository = repository
         // Ensure a notebook always has at least one page.
-        if notebook.pages.isEmpty {
+        if notebook.orderedPages.isEmpty {
             _ = try? repository.addPage(to: notebook, at: nil)
         }
     }
