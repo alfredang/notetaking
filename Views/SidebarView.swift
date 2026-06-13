@@ -23,41 +23,37 @@ struct SidebarView: View {
             }
             .listStyle(.plain)
             .environment(\.editMode, $editMode)
-
-            if selecting {
-                Button(role: .destructive) {
-                    viewModel.deletePages(ids: selectedIDs)
-                    selectedIDs.removeAll()
-                } label: {
-                    Label("Delete \(selectedIDs.count)", systemImage: "trash")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.red)
-                .disabled(selectedIDs.isEmpty)
-                .padding(10)
-            }
         }
         .frame(width: 132)
         .background(Color(.secondarySystemBackground))
     }
 
     private var header: some View {
-        HStack {
-            Text("Pages").font(.headline)
+        HStack(spacing: 14) {
+            // Select / done toggle (drag handles + multi-select appear in select mode).
+            Button {
+                withAnimation {
+                    if selecting { editMode = .inactive; selectedIDs.removeAll() }
+                    else { editMode = .active }
+                }
+            } label: {
+                Image(systemName: selecting ? "checkmark.circle.fill" : "checkmark.circle")
+            }
+            .accessibilityLabel(selecting ? "Done selecting" : "Select pages")
+
             Spacer()
+
             if selecting {
-                Button("Done") {
-                    withAnimation { editMode = .inactive }
+                Button(role: .destructive) {
+                    viewModel.deletePages(ids: selectedIDs)
                     selectedIDs.removeAll()
-                }
-            } else {
-                Button {
-                    withAnimation { editMode = .active }
                 } label: {
-                    Image(systemName: "checkmark.circle")
+                    Image(systemName: "trash")
                 }
-                .accessibilityLabel("Select pages")
+                .disabled(selectedIDs.isEmpty)
+                .foregroundStyle(selectedIDs.isEmpty ? Color.secondary : Color.red)
+                .accessibilityLabel("Delete selected pages")
+            } else {
                 Menu {
                     Button { viewModel.addPageAtEnd() } label: { Label("Add at End", systemImage: "plus") }
                     Button { viewModel.insertPage(before: viewModel.selectedPageIndex) } label: {
@@ -72,7 +68,9 @@ struct SidebarView: View {
                 .accessibilityLabel("Add page")
             }
         }
-        .padding()
+        .font(.title3)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
     }
 
     private func pageRow(index: Int, page: Page) -> some View {
