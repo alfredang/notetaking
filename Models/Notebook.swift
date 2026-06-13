@@ -13,6 +13,18 @@ final class Notebook {
     /// Manual ordering on the dashboard / within a parent.
     var sortIndex: Int = 0
 
+    /// Free-form tags for grouping/filtering (e.g. Physics, Math, Computing).
+    /// Defaulted for CloudKit compatibility.
+    var tags: [String] = []
+
+    /// The notebook's paper template; new pages inherit it. Stored as a raw
+    /// string for CloudKit compatibility.
+    var paperStyleRaw: String = PaperStyle.white.rawValue
+    var paperStyle: PaperStyle {
+        get { PaperStyle(rawValue: paperStyleRaw) ?? .white }
+        set { paperStyleRaw = newValue.rawValue }
+    }
+
     /// Parent notebook for nesting (nil = top-level).
     @Relationship(inverse: \Notebook.children)
     var parent: Notebook?

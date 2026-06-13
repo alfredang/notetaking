@@ -86,6 +86,7 @@ final class NotebookViewModel {
     /// Switches the whole notebook's paper template and recolors existing ink &
     /// shapes so they stay visible on the new surface (dark ink ⇄ white chalk).
     func setPaperStyle(_ style: PaperStyle) {
+        notebook.paperStyle = style
         let map: (UIColor) -> UIColor = { color in
             style == .blackboard ? InkRecolor.forBlackboard(color) : InkRecolor.forWhitePaper(color)
         }
@@ -103,8 +104,8 @@ final class NotebookViewModel {
         bump()
     }
 
-    /// The notebook's current template (taken from its first page).
-    var paperStyle: PaperStyle { pages.first?.paperStyle ?? .white }
+    /// The notebook's current template (the source of truth for new pages).
+    var paperStyle: PaperStyle { notebook.paperStyle }
 
     func movePages(from source: IndexSet, to destination: Int) {
         do {

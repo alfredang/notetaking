@@ -10,6 +10,7 @@ struct NotebookCard: View {
     var onDelete: () -> Void
     var onAddSubNotebook: () -> Void
     var onShare: () -> Void
+    var onEditTags: () -> Void
 
     @State private var isRenaming = false
     @State private var draftTitle = ""
@@ -48,6 +49,21 @@ struct NotebookCard: View {
             Text("Updated \(notebook.updatedAt.relativeDescription)")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
+
+            if !notebook.tags.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(notebook.tags, id: \.self) { tag in
+                            Text(tag)
+                                .font(.caption2)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Color.accentColor.opacity(0.15), in: Capsule())
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                }
+            }
         }
         .padding(12)
         .background(
@@ -60,6 +76,7 @@ struct NotebookCard: View {
                 Button { onOpenFolder() } label: { Label("Open Sub-Notebooks", systemImage: "folder") }
             }
             Button { beginRename() } label: { Label("Rename", systemImage: "pencil") }
+            Button { onEditTags() } label: { Label("Edit Tags", systemImage: "tag") }
             Button { onAddSubNotebook() } label: { Label("Add Sub-Notebook", systemImage: "folder.badge.plus") }
             Button { onDuplicate() } label: { Label("Duplicate", systemImage: "plus.square.on.square") }
             Button { onShare() } label: { Label("Share Notebook", systemImage: "square.and.arrow.up") }

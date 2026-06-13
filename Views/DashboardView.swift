@@ -21,6 +21,8 @@ struct DashboardView: View {
     /// Notebook archive to share via the export sheet.
     @State private var shareItem: ExportRequest?
     @State private var showingImporter = false
+    /// Notebook whose tags are being edited.
+    @State private var taggingNotebook: Notebook?
 
     private let title: String
 
@@ -65,7 +67,8 @@ struct DashboardView: View {
                                 _ = viewModel.createNotebook(title: "New Folder")
                                 // Created at parent scope; reload handled by VM.
                             },
-                            onShare: { shareItem = .notebookArchive(notebook) }
+                            onShare: { shareItem = .notebookArchive(notebook) },
+                            onEditTags: { taggingNotebook = notebook }
                         )
                     }
                 }
@@ -98,6 +101,11 @@ struct DashboardView: View {
         .sheet(item: $shareItem) { request in
             ExportSheet(request: request)
         }
+        .sheet(item: $taggingNotebook) { nb in
+            TagEditorView(title: nb.title, currentTags: nb.tags, suggestions: viewModel.allTags) {
+                viewModel.setTags($0, on: nb)
+            }
+        }
         .fileImporter(
             isPresented: $showingImporter,
             allowedContentTypes: [NotebookArchiveService.contentType]
@@ -117,6 +125,23 @@ struct DashboardView: View {
                 Label("Settings", systemImage: "gearshape")
             }
             .keyboardShortcut(",", modifiers: .command)
+        }
+        if !viewModel.allTags.isEmpty {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Picker("Filter by tag", selection: $viewModel.selectedTag) {
+                        Text("All Notebooks").tag(String?.none)
+                        ForEach(viewModel.allTags, id: \.self) { tag in
+                            Label(tag, systemImage: "tag").tag(String?.some(tag))
+                        }
+                    }
+                } label: {
+                    Label("Filter by tag",
+                          systemImage: viewModel.selectedTag == nil
+                              ? "line.3.horizontal.decrease.circle"
+                              : "line.3.horizontal.decrease.circle.fill")
+                }
+            }
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {

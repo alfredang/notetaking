@@ -15,7 +15,14 @@ final class DashboardViewModel {
         didSet { reload() }
     }
     var searchText: String = ""
+    /// Active tag filter (nil = show all).
+    var selectedTag: String?
     var errorMessage: String?
+
+    /// All tags used across the current notebooks, sorted, for the filter menu.
+    var allTags: [String] {
+        Array(Set(notebooks.flatMap { $0.tags })).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
 
     init(repository: any NotebookRepositoryProtocol, parent: Notebook? = nil) {
         self.repository = repository
@@ -26,13 +33,32 @@ final class DashboardViewModel {
     /// Notebooks after applying the current search filter. Matches the title or
     /// any recognized handwriting/text inside the notebook's pages.
     var filteredNotebooks: [Notebook] {
+        var result = notebooks
+        if let tag = selectedTag {
+            result = result.filter { $0.tags.contains(tag) }
+        }
         let query = searchText.trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return notebooks }
-        return notebooks.filter { notebook in
+        guard !query.isEmpty else { return result }
+        return result.filter { notebook in
             notebook.title.localizedCaseInsensitiveContains(query)
                 || notebook.orderedPages.contains {
                     $0.recognizedText.localizedCaseInsensitiveContains(query)
                 }
+        }
+    }
+
+    /// Updates a notebook's tags (trimmed, de-duplicated) and persists.
+    func setTags(_ tags: [String], on notebook: Notebook) {
+        let cleaned = tags
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        notebook.tags = Array(NSOrderedSet(array: cleaned).array as? [String] ?? cleaned)
+        notebook.touch()
+        do {
+            try repository.save()
+            reload()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 
