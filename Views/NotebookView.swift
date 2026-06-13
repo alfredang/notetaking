@@ -12,6 +12,9 @@ struct NotebookView: View {
     @State private var controller = CanvasController()
     @State private var autoSave: AutoSaveService
     @State private var showSidebar = false
+    /// Persisted finger-drawing preference (shared with Settings). Off by
+    /// default so a finger scrolls and never creates strokes/shapes.
+    @AppStorage("allowsFingerDrawing") private var allowsFingerDrawing = false
     @State private var showAudioNotes = false
     @State private var showPDFImporter = false
     @State private var exportItem: ExportRequest?
@@ -53,6 +56,11 @@ struct NotebookView: View {
             controller.requestNewPageAtEnd = {
                 notebookVM.addPageAtEnd()
             }
+            editorVM.allowsFingerDrawing = allowsFingerDrawing
+        }
+        .onChange(of: allowsFingerDrawing) { _, newValue in
+            editorVM.allowsFingerDrawing = newValue
+            controller.applyTool()
         }
         .onDisappear { autoSave.saveNow() }
         .sheet(item: $exportItem) { request in
@@ -93,7 +101,7 @@ struct NotebookView: View {
             }
         }
         ToolbarItem(placement: .topBarTrailing) {
-            Toggle(isOn: $editorVM.allowsFingerDrawing) {
+            Toggle(isOn: $allowsFingerDrawing) {
                 Image(systemName: "hand.draw")
             }
             .toggleStyle(.button)

@@ -6,15 +6,17 @@ struct ToolbarView: View {
     let controller: CanvasController
 
     var body: some View {
-        HStack(spacing: 12) {
-            toolGroup
-            Divider().frame(height: 28)
-            contextControls
-            Spacer(minLength: 8)
-            historyControls
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                toolGroup
+                Divider().frame(height: 28)
+                contextControls
+                Divider().frame(height: 28)
+                historyControls
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
         .background(Color(.secondarySystemBackground))
         .overlay(alignment: .bottom) { Divider() }

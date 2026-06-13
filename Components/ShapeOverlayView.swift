@@ -27,22 +27,32 @@ final class ShapeOverlayView: UIView {
     // Interaction state
     private var draft: CanvasItem?
     private var dragStart: CGPoint = .zero
-    private enum DragMode { case none, create, move, resize(handle: Int) }
+    private enum DragMode { case none, create, move, resize(handle: Int), lasso }
     private var dragMode: DragMode = .none
     private var movingItemOriginalFrame: CGRect = .zero
+    private var lassoPoints: [CGPoint] = []
 
     private let handleSize: CGFloat = 22
+    private var didMove = false
+    private lazy var editMenuInteraction = UIEditMenuInteraction(delegate: self)
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .clear
         isOpaque = false
         contentMode = .redraw
+        addInteraction(editMenuInteraction)
 
         // Double-tap a labelled item (sticky note / flowchart node) to edit its text.
         let doubleTap = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap(_:)))
         doubleTap.numberOfTapsRequired = 2
         addGestureRecognizer(doubleTap)
+    }
+
+    /// Shows a popup (delete / duplicate / change color) next to a selection.
+    private func presentEditMenu(at point: CGPoint) {
+        let config = UIEditMenuConfiguration(identifier: nil, sourcePoint: point)
+        editMenuInteraction.presentEditMenu(with: config)
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -61,11 +71,8 @@ final class ShapeOverlayView: UIView {
         let isFinger = (event?.allTouches?.first?.type ?? .pencil) != .pencil
         switch tool {
         case .selection:
-            if let sel = items.first(where: { $0.id == selectedID }),
-               handleRects(for: sel).contains(where: { $0.contains(point) }) {
-                return true
-            }
-            return items.contains { hitTest($0, point: point) }
+            // The overlay owns selection: tap an item, or draw a loop to select.
+            return true
         case .shape, .flowchart:
             if isFinger && !allowsFingerDrawing { return false }
             return super.point(inside: point, with: event)
@@ -93,6 +100,18 @@ final class ShapeOverlayView: UIView {
 
         if let selected = items.first(where: { $0.id == selectedID }) {
             drawSelection(for: selected, in: ctx)
+        }
+
+        if case .lasso = dragMode, lassoPoints.count > 1 {
+            ctx.saveGState()
+            ctx.setStrokeColor(UIColor.systemBlue.cgColor)
+            ctx.setLineWidth(1.5)
+            ctx.setLineDash(phase: 0, lengths: [6, 4])
+            ctx.beginPath()
+            ctx.move(to: lassoPoints[0])
+            for p in lassoPoints.dropFirst() { ctx.addLine(to: p) }
+            ctx.strokePath()
+            ctx.restoreGState()
         }
     }
 
@@ -152,9 +171,13 @@ final class ShapeOverlayView: UIView {
         case .create:
             updateDraft(to: point)
         case .move:
+            didMove = true
             moveSelected(by: CGPoint(x: point.x - dragStart.x, y: point.y - dragStart.y))
         case .resize(let handle):
+            didMove = true
             resizeSelected(handle: handle, to: point)
+        case .lasso:
+            lassoPoints.append(point)
         case .none:
             break
         }
@@ -168,9 +191,16 @@ final class ShapeOverlayView: UIView {
         case .move, .resize:
             rerouteConnectors()
             onChange(items)
+            // A tap that selected an item (no drag) pops up the edit menu.
+            if !didMove, let sel = items.first(where: { $0.id == selectedID }) {
+                presentEditMenu(at: CGPoint(x: sel.frame.midX, y: sel.frame.minY - 8))
+            }
+        case .lasso:
+            finishLasso()
         case .none:
             break
         }
+        didMove = false
         dragMode = .none
         draft = nil
         setNeedsDisplay()
@@ -179,6 +209,8 @@ final class ShapeOverlayView: UIView {
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         dragMode = .none
         draft = nil
+        lassoPoints = []
+        didMove = false
         setNeedsDisplay()
     }
 
@@ -279,10 +311,48 @@ final class ShapeOverlayView: UIView {
             movingItemOriginalFrame = hit.frame
             dragMode = .move
         } else {
+            // Empty space: begin a lasso loop to select by enclosure.
             selectedID = nil
-            dragMode = .none
+            lassoPoints = [point]
+            dragMode = .lasso
         }
         setNeedsDisplay()
+    }
+
+    /// Selects the topmost item enclosed by the lasso loop and pops up its menu.
+    private func finishLasso() {
+        defer { lassoPoints = [] }
+        guard lassoPoints.count > 2 else { return }
+        let poly = lassoPoints
+        if let hit = items.last(where: { enclosed($0, in: poly) }) {
+            selectedID = hit.id
+            presentEditMenu(at: CGPoint(x: hit.frame.midX, y: hit.frame.minY - 8))
+        }
+    }
+
+    private func enclosed(_ item: CanvasItem, in polygon: [CGPoint]) -> Bool {
+        let pts: [CGPoint]
+        if item.kind.isLineLike {
+            pts = [item.start, item.end,
+                   CGPoint(x: (item.start.x + item.end.x) / 2, y: (item.start.y + item.end.y) / 2)]
+        } else {
+            pts = [CGPoint(x: item.frame.midX, y: item.frame.midY)]
+        }
+        return pts.contains { pointInPolygon($0, polygon) }
+    }
+
+    private func pointInPolygon(_ p: CGPoint, _ poly: [CGPoint]) -> Bool {
+        var inside = false
+        var j = poly.count - 1
+        for i in 0..<poly.count {
+            let a = poly[i], b = poly[j]
+            if ((a.y > p.y) != (b.y > p.y)),
+               p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x {
+                inside.toggle()
+            }
+            j = i
+        }
+        return inside
     }
 
     private func hitTest(_ item: CanvasItem, point: CGPoint) -> Bool {
@@ -387,5 +457,42 @@ final class ShapeOverlayView: UIView {
         let t = max(0, min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq))
         let proj = CGPoint(x: a.x + t * dx, y: a.y + t * dy)
         return hypot(p.x - proj.x, p.y - proj.y)
+    }
+}
+
+// MARK: - Selection edit menu (delete / duplicate / change color)
+
+extension ShapeOverlayView: UIEditMenuInteractionDelegate {
+    func editMenuInteraction(_ interaction: UIEditMenuInteraction,
+                             menuFor configuration: UIEditMenuConfiguration,
+                             suggestedActions: [UIMenuElement]) -> UIMenu? {
+        guard selectedID != nil else { return nil }
+
+        let duplicate = UIAction(title: "Duplicate",
+                                 image: UIImage(systemName: "plus.square.on.square")) { [weak self] _ in
+            self?.duplicateSelected()
+        }
+        let colorNames = ["Black", "Blue", "Red", "Green", "Orange", "Purple", "Yellow", "Gray"]
+        let colorActions = zip(ToolDefaults.palette, colorNames).map { color, name in
+            UIAction(title: name, image: ShapeOverlayView.swatch(color.uiColor)) { [weak self] _ in
+                self?.setSelectedColor(color)
+            }
+        }
+        let colorMenu = UIMenu(title: "Color", image: UIImage(systemName: "paintpalette"),
+                               children: colorActions)
+        let delete = UIAction(title: "Delete", image: UIImage(systemName: "trash"),
+                              attributes: .destructive) { [weak self] _ in
+            self?.deleteSelected()
+        }
+        return UIMenu(children: [duplicate, colorMenu, delete])
+    }
+
+    /// A small filled-circle image used as a color menu icon.
+    private static func swatch(_ color: UIColor) -> UIImage {
+        let size = CGSize(width: 18, height: 18)
+        return UIGraphicsImageRenderer(size: size).image { ctx in
+            color.setFill()
+            ctx.cgContext.fillEllipse(in: CGRect(origin: .zero, size: size))
+        }.withRenderingMode(.alwaysOriginal)
     }
 }

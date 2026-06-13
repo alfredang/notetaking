@@ -30,10 +30,23 @@ struct CanvasContainerView: UIViewRepresentable {
         scrollView.alwaysBounceVertical = true
         scrollView.showsVerticalScrollIndicator = true
 
+        // Only a finger pans/scrolls — the Apple Pencil is reserved for drawing
+        // and creating shapes (otherwise the scroll pan steals the Pencil drag).
+        scrollView.panGestureRecognizer.allowedTouchTypes = [
+            NSNumber(value: UITouch.TouchType.direct.rawValue)
+        ]
+
         // Double-tap (or squeeze) on the Apple Pencil toggles the tool palette.
         let pencilInteraction = UIPencilInteraction()
         pencilInteraction.delegate = context.coordinator
         scrollView.addInteraction(pencilInteraction)
+
+        // Double-tap with a finger to zoom into the tapped page (and back out).
+        let doubleTapZoom = UITapGestureRecognizer(
+            target: context.coordinator, action: #selector(Coordinator.handleDoubleTapZoom(_:)))
+        doubleTapZoom.numberOfTapsRequired = 2
+        doubleTapZoom.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+        scrollView.addGestureRecognizer(doubleTapZoom)
 
         let stack = UIStackView()
         stack.axis = .vertical
@@ -183,6 +196,25 @@ struct CanvasContainerView: UIViewRepresentable {
             scrollView.setZoomScale(scale, animated: false)
             editor.zoomScale = scale
             centerContent()
+        }
+
+        /// Finger double-tap: zoom into the tapped page, or back out to fit.
+        /// Scoped to drawing tools so it doesn't clash with the overlay's
+        /// double-tap-to-edit-text in selection/shape modes.
+        @objc func handleDoubleTapZoom(_ gesture: UITapGestureRecognizer) {
+            guard !editor.tool.isOverlayTool,
+                  let scrollView, let stack, let fit = fitWidthScale() else { return }
+            if scrollView.zoomScale > fit * 1.05 {
+                scrollView.setZoomScale(fit, animated: true)
+            } else {
+                let target = min(scrollView.maximumZoomScale, fit * 2)
+                let center = gesture.location(in: stack)
+                let size = CGSize(width: scrollView.bounds.width / target,
+                                  height: scrollView.bounds.height / target)
+                let rect = CGRect(x: center.x - size.width / 2, y: center.y - size.height / 2,
+                                  width: size.width, height: size.height)
+                scrollView.zoom(to: rect, animated: true)
+            }
         }
 
         /// The page view occupying the most of the scroll view's viewport.
