@@ -53,6 +53,10 @@ final class ShapeOverlayView: UIView {
     private var didMove = false
     private lazy var editMenuInteraction = UIEditMenuInteraction(delegate: self)
 
+    // Inline text editor (type directly into a sticky note / labelled shape).
+    private weak var activeTextView: UITextView?
+    private var editingItemID: UUID?
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .clear
@@ -85,6 +89,9 @@ final class ShapeOverlayView: UIView {
     ///   (unless finger drawing is enabled).
     override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
         guard isUserInteractionEnabled else { return false }
+        // While inline-editing, capture taps outside the text view so they
+        // commit and exit edit mode.
+        if activeTextView != nil { return true }
         let isFinger = (event?.allTouches?.first?.type ?? .pencil) != .pencil
         switch tool {
         case .selection:
@@ -174,6 +181,11 @@ final class ShapeOverlayView: UIView {
     // MARK: - Touch handling
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        // A tap outside the active text view commits it and exits edit mode.
+        if activeTextView != nil {
+            finishTextEditing()
+            return
+        }
         guard let point = touches.first?.location(in: self) else { return }
         dragStart = point
 
@@ -218,7 +230,7 @@ final class ShapeOverlayView: UIView {
             // other shapes show the edit menu (delete / color / duplicate).
             if !didMove, let sel = items.first(where: { $0.id == selectedID }) {
                 if sel.kind.hasLabel {
-                    presentTextEditor(for: sel.id, current: sel.text ?? "")
+                    beginTextEditing(for: sel.id)
                 } else {
                     presentEditMenu(at: CGPoint(x: sel.frame.midX, y: sel.frame.minY - 8))
                 }
@@ -283,9 +295,11 @@ final class ShapeOverlayView: UIView {
 
         // After placing a sticky note, leave create-mode and open its editor so
         // the user can type immediately with the keyboard.
-        if d.kind == .stickyNote {
+        // Sticky notes and flowchart nodes (process / decision / start-end) drop
+        // straight into inline text editing, then leave create-mode.
+        if d.kind.hasLabel {
             requestSelectionTool()
-            presentTextEditor(for: d.id, current: d.text ?? "")
+            beginTextEditing(for: d.id)
         }
     }
 
@@ -303,30 +317,57 @@ final class ShapeOverlayView: UIView {
     @objc private func handleDoubleTap(_ gesture: UITapGestureRecognizer) {
         let point = gesture.location(in: self)
         guard let item = items.last(where: { $0.kind.hasLabel && hitTest($0, point: point) }) else { return }
-        presentTextEditor(for: item.id, current: item.text ?? "")
+        beginTextEditing(for: item.id)
     }
 
-    private func presentTextEditor(for id: UUID, current: String) {
-        // Walk the responder chain to find a view controller to present from.
-        var responder: UIResponder? = self
-        while let r = responder, !(r is UIViewController) { responder = r.next }
-        guard let presenter = responder as? UIViewController else { return }
+    // MARK: - Inline text editing
 
-        let alert = UIAlertController(title: "Edit Text", message: nil, preferredStyle: .alert)
-        alert.addTextField { tf in
-            tf.text = current
-            tf.placeholder = "Text"
-            tf.autocapitalizationType = .sentences
+    /// Shows an editable, multi-line text view positioned over a labelled item
+    /// so the user types directly into the note (no popup dialog).
+    func beginTextEditing(for id: UUID) {
+        guard let item = items.first(where: { $0.id == id }) else { return }
+        activeTextView?.resignFirstResponder()
+
+        let tv = UITextView(frame: item.frame.insetBy(dx: 4, dy: 4))
+        tv.delegate = self
+        tv.font = .systemFont(ofSize: 17, weight: .medium)
+        tv.textColor = item.strokeColor.uiColor
+        tv.tintColor = item.strokeColor.uiColor
+        tv.backgroundColor = item.fillColor.alpha > 0 ? item.fillColor.uiColor : .secondarySystemBackground
+        tv.layer.cornerRadius = 6
+        tv.textContainerInset = UIEdgeInsets(top: 8, left: 6, bottom: 8, right: 6)
+        tv.autocapitalizationType = .sentences
+        tv.isScrollEnabled = true
+        tv.text = (item.text == defaultLabel(for: item.kind)) ? "" : (item.text ?? "")
+
+        let bar = UIToolbar()
+        bar.items = [
+            UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil),
+            UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(finishTextEditing))
+        ]
+        bar.sizeToFit()
+        tv.inputAccessoryView = bar
+
+        addSubview(tv)
+        activeTextView = tv
+        editingItemID = id
+        tv.becomeFirstResponder()
+        setNeedsDisplay()
+    }
+
+    @objc private func finishTextEditing() {
+        activeTextView?.resignFirstResponder()
+    }
+
+    /// Default placeholder text per kind (so it isn't shown as real content).
+    private func defaultLabel(for kind: ShapeKind) -> String {
+        switch kind {
+        case .process: "Process"
+        case .decision: "Decision"
+        case .startEnd: "Start"
+        case .stickyNote: "Note"
+        default: ""
         }
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Done", style: .default) { [weak self] _ in
-            guard let self, let idx = self.items.firstIndex(where: { $0.id == id }) else { return }
-            self.items[idx].text = alert.textFields?.first?.text ?? ""
-            self.selectedID = id
-            self.onChange(self.items)
-            self.setNeedsDisplay()
-        })
-        presenter.present(alert, animated: true)
     }
 
     // MARK: - Selection
@@ -492,6 +533,21 @@ final class ShapeOverlayView: UIView {
         let t = max(0, min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq))
         let proj = CGPoint(x: a.x + t * dx, y: a.y + t * dy)
         return hypot(p.x - proj.x, p.y - proj.y)
+    }
+}
+
+// MARK: - Inline text editing
+
+extension ShapeOverlayView: UITextViewDelegate {
+    func textViewDidEndEditing(_ textView: UITextView) {
+        if let id = editingItemID, let idx = items.firstIndex(where: { $0.id == id }) {
+            items[idx].text = textView.text
+            onChange(items)
+        }
+        textView.removeFromSuperview()
+        activeTextView = nil
+        editingItemID = nil
+        setNeedsDisplay()
     }
 }
 
