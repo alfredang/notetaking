@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftData
 
 /// Drives the dashboard: notebook listing, sorting, search and CRUD.
 @MainActor
@@ -84,6 +85,16 @@ final class DashboardViewModel {
     func duplicate(_ notebook: Notebook) {
         do {
             try repository.duplicate(notebook)
+            reload()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Imports a shared `.notebook` archive as a new top-level notebook.
+    func importArchive(from url: URL, into context: ModelContext) {
+        do {
+            try NotebookArchiveService.importArchive(from: url, into: context)
             reload()
         } catch {
             errorMessage = error.localizedDescription
