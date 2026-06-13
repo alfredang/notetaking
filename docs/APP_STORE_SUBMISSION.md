@@ -1,20 +1,21 @@
 # App Store Submission — NotePad
 
-Status: **ready for first submission** (v1.0, build 1). This doc is the checklist
-and the metadata to paste into App Store Connect.
+Status: **build uploaded & attached; metadata set via API. Two web-UI steps remain
+before Submit for Review** (App Privacy publish + the Submit button). See §3.
 
 ## 1. App identity
 
 | Field | Value |
 |---|---|
-| App name | NotePad |
+| App name | Tertiary NotePad |
+| App ID (ASC) | `6779909944` |
 | Bundle ID | `com.tertiaryinfotech.notepadapp` |
 | iCloud container | `iCloud.com.tertiaryinfotech.notepadapp` |
 | Team | Alfred Ang — `GU9WTSTX9M` (App Store Connect: Chew Hoe Ang) |
 | Platform | iPadOS 18+ (iPad only — `TARGETED_DEVICE_FAMILY = 2`) |
-| Version / Build | 1.0 / 1 |
+| Version / Build | 1.0 / 2 (build 2 VALID + attached; build 1 expired) |
 | Category | Productivity (secondary: Education) |
-| Price | Free (set in App Store Connect) |
+| Price | Free ($0.00) — set via API |
 
 ## 2. Pre-submission checklist (code) — done
 
@@ -29,18 +30,45 @@ and the metadata to paste into App Store Connect.
       Release → `production` (CloudKit Production for App Store builds).
 - [x] iPad-only orientations + multiple scenes + pointer/indirect input.
 
-## 3. Steps to do in the consoles (manual)
+## 3. Submission status
 
-1. **CloudKit — deploy schema to Production.** In the CloudKit Console for
+### Done via App Store Connect API (no UI needed) ✅
+- App record created (`6779909944`), category Productivity, price Free.
+- Build 2 uploaded, processed VALID, and attached to v1.0. Build 1 expired.
+- Description, subtitle, promo text, keywords, support/marketing URLs — set.
+- **Privacy policy URL** → `https://www.tertiaryinfotech.com` — set.
+- **Copyright** → `2026 Tertiary Infotech Academy Pte Ltd` — set.
+- **App Review contact** (Alfred Ang, angch@tertiaryinfotech.com, no demo account
+  needed) — created.
+- iPad 12.9" screenshots uploaded (2).
+
+### Must be done in the web UI — Apple's API can't do these ⚠️
+These are hard limitations of Apple's public API, not optional. ~5 minutes total at
+<https://appstoreconnect.apple.com> → **Apps → Tertiary NotePad**:
+
+1. **App Privacy → "Data Not Collected" → Publish.** App Privacy ("nutrition label")
+   is **not writable via any public API** — it must be set in the UI. Click **App
+   Privacy** (left sidebar) → **Get Started** → answer **"No, we do not collect data
+   from this app"** → **Publish**. (Matches `PrivacyInfo.xcprivacy`: no tracking, no
+   collected data.)
+
+2. **Submit for Review.** Open the **1.0 Prepare for Submission** version →
+   **Add for Review** / **Submit for Review**. The version's build, metadata,
+   screenshots, pricing and review contact are already filled in.
+   - Note on screenshots: the **API** validator spuriously demands an iPhone 6.5"
+     screenshot even though the binary is iPad-only (`UIDeviceFamily = 2`). The
+     **web UI** only shows the iPad screenshot slot for an iPad-only app, so Submit
+     there should not ask for iPhone shots. If it ever does, that means a non–iPad
+     build leaked in — re-check `TARGETED_DEVICE_FAMILY`.
+
+3. **CloudKit — deploy schema to Production.** In the CloudKit Console for
    `iCloud.com.tertiaryinfotech.notepadapp`, **Deploy Schema Changes** from
    Development → Production. App Store builds use the Production environment; sync
-   will fail for shipped users if the schema isn't deployed.
-2. **App Store Connect — create the app record** (bundle ID above), set category,
-   price, and availability.
-3. **Privacy "Nutrition Label"** (App Privacy section): select **Data Not Collected**
-   (data lives in the user's private iCloud; we don't collect or track).
-4. **Encryption**: answer "No" (matches `ITSAppUsesNonExemptEncryption = false`).
-5. Provide a **support URL** and **privacy policy URL** (required).
+   will fail for shipped users if the schema isn't deployed. (Do this before/with
+   submission.)
+
+4. **Encryption**: already answered via `ITSAppUsesNonExemptEncryption = false` — no
+   action needed.
 
 ## 4. Build & upload
 
