@@ -24,10 +24,10 @@ final class EditorViewModel {
 
     // Canvas
     var zoomScale: CGFloat = 1
-    /// Whether fingers can draw (otherwise fingers pan/zoom, Pencil draws).
-    /// Defaults to on so handwriting works out of the box even without a paired
-    /// Apple Pencil; a single finger draws, two fingers pan/zoom.
-    var allowsFingerDrawing: Bool = true
+    /// Whether fingers can draw. Off by default (GoodNotes-style): the Apple
+    /// Pencil draws while a single finger scrolls/pans — so swiping up scrolls
+    /// the page and can append a new one. Toggle on to draw with a finger.
+    var allowsFingerDrawing: Bool = false
 
     /// Hides the floating tool palette (toggled by a double-tap on the Pencil).
     var isPaletteHidden: Bool = false

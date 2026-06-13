@@ -27,11 +27,11 @@ struct SidebarView: View {
                 ForEach(Array(viewModel.pages.enumerated()), id: \.element.id) { index, page in
                     pageRow(index: index, page: page)
                         .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+                        .listRowBackground(Color.clear)
                 }
                 .onMove { source, dest in viewModel.movePages(from: source, to: dest) }
             }
             .listStyle(.plain)
-            .environment(\.editMode, .constant(.active))
         }
         .frame(width: 132)
         .background(Color(.secondarySystemBackground))

@@ -118,6 +118,11 @@ struct CanvasContainerView: UIViewRepresentable {
             controller.scrollToPage = { [weak self] index in
                 guard let self, self.pageViews.indices.contains(index),
                       let scrollView = self.scrollView else { return }
+                // If zoomed far out (e.g. a pinch-out overview), restore a
+                // readable full-width zoom before jumping to the page.
+                if let fit = self.fitWidthScale(), scrollView.zoomScale < fit * 0.9 {
+                    self.applyFit()
+                }
                 let target = self.pageViews[index]
                 let rect = target.convert(target.bounds, to: scrollView)
                 scrollView.scrollRectToVisible(rect.insetBy(dx: 0, dy: -28), animated: true)
@@ -153,16 +158,26 @@ struct CanvasContainerView: UIViewRepresentable {
         /// Zooms so the page fills the editor's full width the first time it lays
         /// out (GoodNotes-style: no side dead space; scroll vertically for more).
         func fitToPageIfNeeded() {
-            guard !didInitialFit, let scrollView, let pv = pageViews.first else { return }
-            let bounds = scrollView.bounds.size
-            guard bounds.width > 1, bounds.height > 1 else { return }
-            let pageSize = pv.page.canvasSize
-            let sidePadding: CGFloat = 16 // 8pt leading + 8pt trailing
-            let scale = (bounds.width - sidePadding) / pageSize.width
-            let clamped = max(scrollView.minimumZoomScale, min(scrollView.maximumZoomScale, scale))
-            scrollView.setZoomScale(clamped, animated: false)
-            editor.zoomScale = clamped
+            guard !didInitialFit, fitWidthScale() != nil else { return }
+            applyFit()
             didInitialFit = true
+        }
+
+        /// The zoom scale that makes the page fill the editor's width.
+        private func fitWidthScale() -> CGFloat? {
+            guard let scrollView, let pv = pageViews.first else { return nil }
+            let bounds = scrollView.bounds.size
+            guard bounds.width > 1, bounds.height > 1 else { return nil }
+            let sidePadding: CGFloat = 16 // 8pt leading + 8pt trailing
+            let scale = (bounds.width - sidePadding) / pv.page.canvasSize.width
+            return max(scrollView.minimumZoomScale, min(scrollView.maximumZoomScale, scale))
+        }
+
+        private func applyFit() {
+            guard let scrollView, let scale = fitWidthScale() else { return }
+            scrollView.setZoomScale(scale, animated: false)
+            editor.zoomScale = scale
+            centerContent()
         }
 
         /// The page view occupying the most of the scroll view's viewport.
@@ -236,19 +251,40 @@ struct CanvasContainerView: UIViewRepresentable {
 
         func scrollViewDidZoom(_ scrollView: UIScrollView) {
             editor.zoomScale = scrollView.zoomScale
+            centerContent()
+        }
+
+        /// Keeps the page(s) centered when zoomed out smaller than the viewport
+        /// (otherwise the content pins to the top-left, leaving dead space).
+        private func centerContent() {
+            guard let scrollView else { return }
+            let h = max(0, (scrollView.bounds.width - scrollView.contentSize.width) / 2)
+            let v = max(0, (scrollView.bounds.height - scrollView.contentSize.height) / 2)
+            scrollView.contentInset = UIEdgeInsets(top: v, left: h, bottom: 0, right: h)
         }
 
         /// Swiping up past the end of the last page appends a new blank page
         /// (continuous, GoodNotes-style paging).
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
-            guard scrollView.contentSize.height > scrollView.bounds.height else { return }
-            let overscroll = scrollView.contentOffset.y + scrollView.bounds.height - scrollView.contentSize.height
-            if overscroll > 130, !requestedNewPage {
-                requestedNewPage = true
-                controller.requestNewPageAtEnd()
-            } else if overscroll < 30 {
-                requestedNewPage = false
-            }
+            let overscroll = bottomOverscroll(scrollView)
+            if overscroll > 90 { appendPageOnce() }
+            else if overscroll < 20 { requestedNewPage = false }
+        }
+
+        func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+            if bottomOverscroll(scrollView) > 40 { appendPageOnce() }
+        }
+
+        private func bottomOverscroll(_ scrollView: UIScrollView) -> CGFloat {
+            // Distance pulled up beyond the bottom of the content.
+            scrollView.contentOffset.y + scrollView.bounds.height
+                - max(scrollView.contentSize.height, scrollView.bounds.height)
+        }
+
+        private func appendPageOnce() {
+            guard !requestedNewPage else { return }
+            requestedNewPage = true
+            controller.requestNewPageAtEnd()
         }
 
         // MARK: UIPencilInteractionDelegate
