@@ -2,9 +2,15 @@
 
 A clean, lightweight, native iPad note-taking app optimized for Apple Pencil. It
 feels like a paper notebook while providing digital note-taking, drawing,
-flowchart creation, and notebook organization — fully offline and local-first.
+flowchart creation, and notebook organization — with iCloud sync across devices.
 
-![Build](https://github.com/alfredang/notetakingapp/actions/workflows/build.yml/badge.svg)
+![Build](https://github.com/alfredang/notepadapp/actions/workflows/build.yml/badge.svg)
+
+<p align="center">
+  <img src="docs/screenshots/editor.png" alt="Editor with flowchart, sticky note and tool palette" width="45%" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/dashboard.png" alt="Notebook dashboard" width="45%" />
+</p>
 
 ## Features
 
@@ -26,11 +32,18 @@ flowchart creation, and notebook organization — fully offline and local-first.
   (with confirmation), delete, drag-to-reorder via the thumbnail sidebar.
 - **Auto save** — every stroke and shape change is debounced and persisted; no save button.
 - **Export** — page to PNG / JPG / PDF; whole notebook to a combined PDF.
+- **iCloud sync** — notebooks and pages auto-sync across your devices via CloudKit (private database).
+- **Handwriting / OCR search** — pages are indexed with Vision text recognition, so dashboard search finds words inside your handwriting and shapes.
+- **Sticky notes** — drop a colored note card and double-tap to edit its text (also works on flowchart nodes).
+- **Audio notes** — record, play back, and delete voice memos attached to a notebook.
+- **PDF annotation** — import a PDF as annotatable pages and mark it up with any tool.
+- **Infinite canvas** — extend a page in A4-height increments for a continuous, no-page-break vertical canvas.
+- **Notebook sharing** — export a full notebook (pages, PDF backgrounds, voice memos) to a portable `.notebook` file and import it on another device.
 
 ## Tech Stack
 
-- **SwiftUI** + **PencilKit** + **PDFKit**
-- **SwiftData** persistence (local-first, offline)
+- **SwiftUI** + **PencilKit** + **PDFKit** + **Vision** (OCR) + **AVFoundation** (audio)
+- **SwiftData** persistence with **CloudKit** iCloud sync
 - **Swift 6** language mode with **complete strict concurrency**
 - **Observation** framework (`@Observable`), `@MainActor` isolation
 - **MVVM** + **Repository** pattern
@@ -39,15 +52,17 @@ flowchart creation, and notebook organization — fully offline and local-first.
 ## Architecture
 
 ```
-SwiftUI Views ──> ViewModels (@Observable) ──> Repositories ──> SwiftData
+SwiftUI Views ──> ViewModels (@Observable) ──> Repositories ──> SwiftData ──> CloudKit
                        │
-                       ├─> AutoSaveService (debounced persistence)
-                       └─> ExportService (PNG / JPG / PDF)
+                       ├─> AutoSaveService (debounced save + Vision OCR indexing)
+                       ├─> ExportService / NotebookArchiveService (PDF, PNG, .notebook)
+                       └─> AudioRecorder / PDFImport services
 
 Editor = zoom/pan UIScrollView
-         └─ vertical stack of PageContainerViews
+         └─ vertical stack of PageContainerViews (height = N × A4)
+              ├─ background image  (imported PDF page)
               ├─ PKCanvasView      (handwriting / drawing, pencil-only)
-              └─ ShapeOverlayView  (vector shapes + flowchart connectors)
+              └─ ShapeOverlayView  (vector shapes, flowchart connectors, sticky notes)
 ```
 
 The gesture conflict between drawing, panning and zooming is resolved by setting
@@ -57,13 +72,14 @@ single outer scroll view owns pan/zoom while the Pencil draws.
 ## Project Layout
 
 ```
-App/          App entry, root view, theme
-Models/       Notebook, Page (SwiftData), CanvasItem/Shape (Codable overlay model)
+App/          App entry (CloudKit container), root view, theme, entitlements
+Models/       Notebook, Page, AudioNote (SwiftData), CanvasItem/Shape (Codable overlay)
 ViewModels/   Dashboard / Notebook / Editor view models, tool + canvas controllers
-Services/     Storage, Repositories, AutoSave, Export, PageRenderer, date formatting
+Services/     Repositories, AutoSave (+OCR), Export, NotebookArchive, PDFImport,
+              TextRecognition (Vision), Audio (AVFoundation), PageRenderer
 PencilKit/    CanvasContainerView (scroll + zoom host)
 Components/   PageContainerView, ShapeOverlayView, ShapePath, ThumbnailView
-Views/        Dashboard, Notebook, Editor, Sidebar, Toolbar, Settings, Export
+Views/        Dashboard, Notebook, Editor, Sidebar, Toolbar, Settings, Export, AudioNotes
 ```
 
 ## Building
@@ -93,7 +109,10 @@ xcodebuild -project NotePadApp.xcodeproj -scheme NotePadApp \
 `.github/workflows/build.yml` runs on every push / PR to `main`: it installs
 XcodeGen, generates the project, and compiles for the iOS Simulator on a macOS runner.
 
-## Roadmap (Phase 2)
+## Roadmap
 
-iCloud sync · handwriting recognition / OCR search · notebook sharing &
-collaboration · audio notes · infinite canvas · sticky notes · PDF annotation.
+**Phase 2 — shipped:** iCloud sync · handwriting / OCR search · sticky notes ·
+audio notes · infinite (extendable) canvas · PDF annotation · notebook sharing.
+
+**Next:** real-time collaboration (live CKShare co-editing — current sharing is
+file-based) · handwriting-to-text conversion · sticky-note colors · web companion.
