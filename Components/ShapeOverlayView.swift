@@ -47,6 +47,42 @@ final class ShapeOverlayView: UIView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+    /// Whether a finger may draw/select on the overlay. When false the overlay
+    /// lets finger touches fall through so a single finger scrolls the page.
+    var allowsFingerDrawing = false
+
+    /// Controls which touches the overlay intercepts so finger-scroll and
+    /// two-finger zoom keep working in every tool:
+    /// - selection: only items/handles (empty space → canvas lasso for ink),
+    /// - shape/flowchart: the Pencil draws; a finger falls through to scroll
+    ///   (unless finger drawing is enabled).
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        guard isUserInteractionEnabled else { return false }
+        let isFinger = (event?.allTouches?.first?.type ?? .pencil) != .pencil
+        switch tool {
+        case .selection:
+            if let sel = items.first(where: { $0.id == selectedID }),
+               handleRects(for: sel).contains(where: { $0.contains(point) }) {
+                return true
+            }
+            return items.contains { hitTest($0, point: point) }
+        case .shape, .flowchart:
+            if isFinger && !allowsFingerDrawing { return false }
+            return super.point(inside: point, with: event)
+        default:
+            return false
+        }
+    }
+
+    /// Recolors the currently selected item's stroke (and fill if it has one).
+    func setSelectedColor(_ color: RGBAColor) {
+        guard let id = selectedID, let idx = items.firstIndex(where: { $0.id == id }) else { return }
+        items[idx].strokeColor = color
+        if items[idx].fillColor.alpha > 0 { items[idx].fillColor = color }
+        onChange(items)
+        setNeedsDisplay()
+    }
+
     // MARK: - Rendering
 
     override func draw(_ rect: CGRect) {

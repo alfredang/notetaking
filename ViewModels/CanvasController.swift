@@ -25,4 +25,6 @@ final class CanvasController {
     var clearAllPages: () -> Void = {}
     /// Asks the host to append a new blank page at the end (swipe-up past bottom).
     var requestNewPageAtEnd: () -> Void = {}
+    /// Recolors the currently selected shape/flowchart element.
+    var setSelectedColor: (RGBAColor) -> Void = { _ in }
 }

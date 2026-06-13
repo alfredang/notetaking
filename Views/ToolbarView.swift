@@ -16,7 +16,7 @@ struct ToolbarView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
-        .background(.regularMaterial)
+        .background(Color(.secondarySystemBackground))
         .overlay(alignment: .bottom) { Divider() }
     }
 
@@ -89,7 +89,8 @@ struct ToolbarView: View {
     }
 
     private var isShapeActive: Bool {
-        if case .shape = editor.tool { return true }; return false
+        if case .shape(let kind) = editor.tool, kind != .stickyNote { return true }
+        return false
     }
     private var isFlowchartActive: Bool {
         if case .flowchart = editor.tool { return true }; return false
@@ -114,9 +115,27 @@ struct ToolbarView: View {
             fillToggle
             selectionActions
         case .selection:
+            recolorSwatches
             selectionActions
         default:
             EmptyView()
+        }
+    }
+
+    /// Swatches that recolor the currently lasso-selected shape/flowchart item.
+    private var recolorSwatches: some View {
+        HStack(spacing: 8) {
+            ForEach(Array(ToolDefaults.palette.enumerated()), id: \.offset) { _, color in
+                Button {
+                    controller.setSelectedColor(color)
+                } label: {
+                    Circle()
+                        .fill(color.color)
+                        .frame(width: 24, height: 24)
+                        .overlay(Circle().stroke(Color.primary.opacity(0.15), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 

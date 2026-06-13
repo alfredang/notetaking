@@ -133,6 +133,9 @@ struct CanvasContainerView: UIViewRepresentable {
             controller.clearVisiblePage = { [weak self] in self?.clearVisiblePage() }
             controller.clearAllPages = { [weak self] in self?.clearAllPages() }
             controller.applyTool = { [weak self] in self?.applyTool() }
+            controller.setSelectedColor = { [weak self] color in
+                self?.pageViews.first { $0.overlay.selectedID != nil }?.overlay.setSelectedColor(color)
+            }
         }
 
         /// Clears the on-screen canvas + overlay for the visible page and persists it.
@@ -229,21 +232,28 @@ struct CanvasContainerView: UIViewRepresentable {
         /// Applies the current tool to every page's canvas + overlay.
         func applyTool() {
             let tool = editor.tool
-            let isOverlay = tool.isOverlayTool
-            scrollView?.isScrollEnabled = !isOverlay
-            scrollView?.pinchGestureRecognizer?.isEnabled = !isOverlay
-            // When finger drawing is enabled a single finger must DRAW, not pan —
-            // otherwise the scroll view's pan gesture steals the touch from the
-            // canvas and nothing gets inked. Require two fingers to pan in that
-            // mode; with Pencil-only drawing a single finger keeps panning.
+            let isSelection = (tool == .selection)
+            let isOverlayDraw: Bool = {
+                switch tool { case .shape, .flowchart: return true; default: return false }
+            }()
+
+            // Two fingers ALWAYS pinch-zoom. A single finger scrolls in every
+            // tool except selection (where it draws the lasso loop). The Apple
+            // Pencil draws / selects via the overlay or canvas.
+            scrollView?.pinchGestureRecognizer?.isEnabled = true
+            scrollView?.isScrollEnabled = !isSelection
+            // With finger drawing on, a single finger draws so panning needs two
+            // fingers; otherwise a single finger scrolls.
             scrollView?.panGestureRecognizer.minimumNumberOfTouches =
-                (editor.allowsFingerDrawing && !isOverlay) ? 2 : 1
+                editor.allowsFingerDrawing ? 2 : 1
 
             for pv in pageViews {
                 pv.canvas.tool = editor.pkTool
-                pv.canvas.drawingPolicy = editor.drawingPolicy
-                pv.canvas.drawingGestureRecognizer.isEnabled = !isOverlay
+                // Selection enables the PencilKit lasso (any input) for ink.
+                pv.canvas.drawingPolicy = isSelection ? .anyInput : editor.drawingPolicy
+                pv.canvas.drawingGestureRecognizer.isEnabled = !isOverlayDraw
                 pv.overlay.tool = tool
+                pv.overlay.allowsFingerDrawing = editor.allowsFingerDrawing
             }
         }
 
@@ -252,8 +262,14 @@ struct CanvasContainerView: UIViewRepresentable {
         func viewForZooming(in scrollView: UIScrollView) -> UIView? { stack }
 
         func scrollViewDidZoom(_ scrollView: UIScrollView) {
-            editor.zoomScale = scrollView.zoomScale
+            // Re-center live during the pinch, but defer the observable zoom
+            // update to the end so the toolbar/zoom label don't re-render every
+            // frame (which caused flicker and dropped taps).
             centerContent()
+        }
+
+        func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
+            editor.zoomScale = scale
         }
 
         /// Keeps the page(s) centered when zoomed out smaller than the viewport
