@@ -126,13 +126,13 @@ struct CanvasContainerView: UIViewRepresentable {
 
         private func wireController() {
             controller.deleteSelection = { [weak self] in
-                self?.pageViews.first { !$0.overlay.selectedIDs.isEmpty }?.overlay.deleteSelected()
+                self?.pageViews.first { $0.overlay.hasAnySelection }?.overlay.deleteSelected()
             }
             controller.duplicateSelection = { [weak self] in
                 self?.pageViews.first { !$0.overlay.selectedIDs.isEmpty }?.overlay.duplicateSelected()
             }
             controller.hasSelection = { [weak self] in
-                self?.pageViews.contains { !$0.overlay.selectedIDs.isEmpty } ?? false
+                self?.pageViews.contains { $0.overlay.hasAnySelection } ?? false
             }
             controller.reload = { [weak self] page in
                 self?.pageViews.first { $0.page.id == page.id }?.reloadFromModel()
@@ -186,7 +186,7 @@ struct CanvasContainerView: UIViewRepresentable {
             controller.clearAllPages = { [weak self] in self?.clearAllPages() }
             controller.applyTool = { [weak self] in self?.applyTool() }
             controller.setSelectedColor = { [weak self] color in
-                self?.pageViews.first { !$0.overlay.selectedIDs.isEmpty }?.overlay.setSelectedColor(color)
+                self?.pageViews.first { $0.overlay.hasAnySelection }?.overlay.setSelectedColor(color)
             }
         }
 
@@ -385,6 +385,16 @@ struct CanvasContainerView: UIViewRepresentable {
                 pv.deleteSelectedInk()
                 self?.persistInk(of: pv, page: page)
             }
+            // Snapshot / restore the whole drawing so the overlay can fold ink edits
+            // into its combined (shapes + ink) undo steps.
+            pv.overlay.snapshotInk = { [weak pv] in pv?.canvas.drawing.dataRepresentation() }
+            pv.overlay.restoreInk = { [weak self, weak pv, weak page] data in
+                guard let pv, let page else { return }
+                (pv.canvas as? StrokeCanvasView)?.loadingDrawing = true
+                pv.canvas.drawing = (try? PKDrawing(data: data)) ?? PKDrawing()
+                pv.clearInkSelection()
+                self?.persistInk(of: pv, page: page)
+            }
             return pv
         }
 
@@ -415,11 +425,11 @@ struct CanvasContainerView: UIViewRepresentable {
                 switch tool { case .shape, .flowchart: return true; default: return false }
             }()
 
-            // Two fingers ALWAYS pinch-zoom. A single finger scrolls in every
-            // tool except selection (where it draws the lasso loop). The Apple
-            // Pencil draws / selects via the overlay or canvas.
+            // Two fingers ALWAYS pinch-zoom. A single finger scrolls in every tool
+            // (including selection — the Pencil draws the lasso loop, the finger
+            // pans). The Apple Pencil draws / selects via the overlay or canvas.
             scrollView?.pinchGestureRecognizer?.isEnabled = true
-            scrollView?.isScrollEnabled = !isSelection
+            scrollView?.isScrollEnabled = true
             // With finger drawing on, a single finger draws so panning needs two
             // fingers; otherwise a single finger scrolls.
             scrollView?.panGestureRecognizer.minimumNumberOfTouches =

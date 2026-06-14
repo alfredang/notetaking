@@ -1,0 +1,369 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e5]:
+        - generic [ref=e8]:
+          - heading "Highlights from Google Play at I/O" [level=1] [ref=e9]
+          - paragraph [ref=e10]: Learn how we’re continuing to evolve into a content-forward destination with enhanced content formats and more intelligent search journeys. Plus, explore new tools and reporting that will help streamline your workflows.
+          - link "Learn more" [ref=e12] [cursor=pointer]:
+            - /url: https://goo.gle/play-io26
+        - button "Pause silent looping video" [ref=e16]:
+          - img [ref=e18]
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - link "Go to Homepage" [ref=e25] [cursor=pointer]:
+            - /url: https://play.google.com/console/about/
+            - img "Google Play" [ref=e28]
+          - button "Open the navigation drawer" [ref=e29] [cursor=pointer]
+        - generic [ref=e31]:
+          - link "Go to Play Console" [ref=e33] [cursor=pointer]:
+            - /url: https://accounts.google.com/ServiceLogin?service=androiddeveloper&amp;passive=true&amp;continue=https%3A%2F%2Fplay.google.com%2Fconsole%2Fdeveloper%2F
+          - button "search button" [ref=e35] [cursor=pointer]:
+            - img [ref=e36]
+      - generic [ref=e43]:
+        - paragraph [ref=e45]:
+          - generic [ref=e46]: Get Google Play developer updates in your inbox
+        - link "Sign up" [ref=e48] [cursor=pointer]:
+          - /url: https://play.google.com/console/about/newsletter/
+      - list [ref=e52]:
+        - listitem [ref=e53]:
+          - link "Google Play Keynote Watch the recording to learn about the newest tools to help your business grow on Play." [ref=e54] [cursor=pointer]:
+            - /url: "https://goo.gle/whats-new-in-play-io26 "
+            - generic [ref=e55]:
+              - img [ref=e57]
+              - generic [ref=e58]:
+                - paragraph [ref=e59]: Google Play Keynote
+                - paragraph [ref=e60]: Watch the recording to learn about the newest tools to help your business grow on Play.
+        - listitem [ref=e61]:
+          - link "Play Console Deep Dive Learn about the latest updates that will save you time and provide deeper insights." [ref=e62] [cursor=pointer]:
+            - /url: https://www.youtube.com/watch?v=alVIYAu51V8
+            - generic [ref=e63]:
+              - img [ref=e65]
+              - generic [ref=e66]:
+                - paragraph [ref=e67]: Play Console Deep Dive
+                - paragraph [ref=e68]: Learn about the latest updates that will save you time and provide deeper insights.
+        - listitem [ref=e69]:
+          - link "Developer Keynote Recap Get the main highlights of Google’s latest developer products in just a few minutes." [ref=e70] [cursor=pointer]:
+            - /url: https://www.youtube.com/watch?v=FZ-3BjbfNlI
+            - generic [ref=e71]:
+              - img [ref=e73]
+              - generic [ref=e74]:
+                - paragraph [ref=e75]: Developer Keynote Recap
+                - paragraph [ref=e76]: Get the main highlights of Google’s latest developer products in just a few minutes.
+      - list [ref=e79]:
+        - listitem [ref=e80]:
+          - link "play-console-icon-homepage Play Console Manage your apps and games" [ref=e81] [cursor=pointer]:
+            - /url: https://play.google.com/console/u/0/developers/
+            - generic [ref=e82]:
+              - img "play-console-icon-homepage" [ref=e85]
+              - generic [ref=e87]:
+                - paragraph [ref=e88]:
+                  - generic [ref=e89]: Play Console
+                - paragraph [ref=e90]:
+                  - generic [ref=e91]: Manage your apps and games
+        - listitem [ref=e92]:
+          - link "play-commerce-icon-homepage Play Commerce Reach your monetization goals" [ref=e93] [cursor=pointer]:
+            - /url: https://play.google.com/console/about/guides/play-commerce/
+            - generic [ref=e94]:
+              - img "play-commerce-icon-homepage" [ref=e97]
+              - generic [ref=e99]:
+                - paragraph [ref=e100]:
+                  - generic [ref=e101]: Play Commerce
+                - paragraph [ref=e102]:
+                  - generic [ref=e103]: Reach your monetization goals
+        - listitem [ref=e104]:
+          - link "play-developer-icon-homepage Play developer APIs Publishing and app-management tasks" [ref=e105] [cursor=pointer]:
+            - /url: https://developer.android.com/google/play/developer-api/
+            - generic [ref=e106]:
+              - img "play-developer-icon-homepage" [ref=e109]
+              - generic [ref=e111]:
+                - paragraph [ref=e112]:
+                  - generic [ref=e113]: Play developer APIs
+                - paragraph [ref=e114]:
+                  - generic [ref=e115]: Publishing and app-management tasks
+      - generic [ref=e116]:
+        - generic [ref=e118]:
+          - heading "Guidance for every goal" [level=2] [ref=e119]
+          - link "Copy link to this section" [ref=e121] [cursor=pointer]:
+            - /url: "#guidance-for-every-goal"
+            - img [ref=e122]
+        - generic [ref=e125]:
+          - generic [ref=e126]: Find the right tools and resources to accomplish your goals with Google Play.
+          - link "View all guides" [ref=e128] [cursor=pointer]:
+            - /url: https://play.google.com/console/about/guides/
+      - generic [ref=e130]:
+        - tablist [ref=e131]:
+          - tab "Monetize with Play Commerce" [selected] [ref=e132] [cursor=pointer]
+          - tab "Growing your audience" [ref=e133] [cursor=pointer]
+          - tab "Improving app quality" [ref=e134] [cursor=pointer]
+          - tab "Privacy and security" [ref=e135] [cursor=pointer]
+        - tabpanel [ref=e137]:
+          - generic [ref=e139]:
+            - generic [ref=e142]:
+              - generic [ref=e143]:
+                - paragraph [ref=e144]: Google Play Commerce is our platform to help you reach your monetization goals. Explore the tools and resources to monetize your app and boost your revenue.
+                - paragraph [ref=e145]:
+                  - link "Learn more about monetization" [ref=e146] [cursor=pointer]:
+                    - /url: https://play.google.com/console/about/guides/play-commerce/
+              - img "Monetize with Play Commerce" [ref=e150]
+            - list [ref=e153]:
+              - listitem [ref=e154]:
+                - link "Program Grow with Google Play pass Google Play Pass is a subscription service offering access to over 1000 apps and games, completely free of ads and in-app purchases. Play Pass provides a high-quality, curated collection of titles – with new content added regularly. Learn more" [ref=e155] [cursor=pointer]:
+                  - /url: https://play.google.com/console/about/programs/googleplaypass/
+                  - generic [ref=e156]:
+                    - img [ref=e158]
+                    - generic [ref=e159]:
+                      - paragraph [ref=e160]: Program
+                      - paragraph [ref=e161]:
+                        - generic [ref=e162]: Grow with Google Play pass
+                      - paragraph [ref=e163]: Google Play Pass is a subscription service offering access to over 1000 apps and games, completely free of ads and in-app purchases. Play Pass provides a high-quality, curated collection of titles – with new content added regularly.
+                      - generic [ref=e164]:
+                        - generic: Learn more
+              - listitem [ref=e165]:
+                - link "Console feature Sell products in-app Grow your revenue by selling products within your app using Google Play Billing Learn more" [ref=e166] [cursor=pointer]:
+                  - /url: https://play.google.com/console/about/in-appproductssetup/
+                  - generic [ref=e167]:
+                    - img [ref=e169]
+                    - generic [ref=e170]:
+                      - paragraph [ref=e171]: Console feature
+                      - paragraph [ref=e172]:
+                        - generic [ref=e173]: Sell products in-app
+                      - paragraph [ref=e174]:
+                        - generic [ref=e175]: Grow your revenue by selling products within your app using Google Play Billing
+                      - generic [ref=e176]:
+                        - generic: Learn more
+              - listitem [ref=e177]:
+                - link "Console feature Set up subscriptions Grow your revenue with subscriptions and let Play take care of payment, notifications, and subscription management Learn more" [ref=e178] [cursor=pointer]:
+                  - /url: https://play.google.com/console/about/subscriptionsetup/
+                  - generic [ref=e179]:
+                    - img [ref=e181]
+                    - generic [ref=e182]:
+                      - paragraph [ref=e183]: Console feature
+                      - paragraph [ref=e184]:
+                        - generic [ref=e185]: Set up subscriptions
+                      - paragraph [ref=e186]:
+                        - generic [ref=e187]: Grow your revenue with subscriptions and let Play take care of payment, notifications, and subscription management
+                      - generic [ref=e188]:
+                        - generic: Learn more
+              - listitem [ref=e189]:
+                - generic [ref=e191] [cursor=pointer]:
+                  - generic [ref=e192]:
+                    - img [ref=e194]
+                    - generic [ref=e199]: 03:27
+                  - generic [ref=e200]:
+                    - paragraph [ref=e201]: Case study
+                    - paragraph [ref=e202]:
+                      - generic [ref=e203]: Beelinguapp finds success with subscriptions
+                    - generic [ref=e204]:
+                      - generic: Watch video
+              - listitem [ref=e205]:
+                - link "Help center Tax and compliance support Learn more" [ref=e206] [cursor=pointer]:
+                  - /url: https://support.google.com/googleplay/android-developer/answer/10463498?hl=en
+                  - generic [ref=e207]:
+                    - img [ref=e209]
+                    - generic [ref=e210]:
+                      - paragraph [ref=e211]: Help center
+                      - paragraph [ref=e212]:
+                        - generic [ref=e213]: Tax and compliance support
+                      - generic [ref=e214]:
+                        - generic: Learn more
+      - generic [ref=e217]:
+        - generic [ref=e218]:
+          - generic [ref=e220]:
+            - heading "Programs and initiatives" [level=2] [ref=e221]
+            - link "Copy link to this section" [ref=e223] [cursor=pointer]:
+              - /url: "#programs-and-initiatives"
+              - img [ref=e224]
+          - generic [ref=e227]:
+            - generic [ref=e228]: Supporting developers of all sizes, stages of growth and business models.
+            - link "View all programs" [ref=e230] [cursor=pointer]:
+              - /url: https://play.google.com/console/about/programs/
+        - list [ref=e233]:
+          - listitem [ref=e234]:
+            - link "Google Play Points Connect with highly engaged users and earn incremental revenue. Learn more" [ref=e235] [cursor=pointer]:
+              - /url: https://play.google.com/console/about/programs/googleplaypoints/
+              - generic [ref=e236]:
+                - img [ref=e238]
+                - generic [ref=e239]:
+                  - paragraph [ref=e240]:
+                    - generic [ref=e241]: Google Play Points
+                  - paragraph [ref=e242]:
+                    - generic [ref=e243]: Connect with highly engaged users and earn incremental revenue.
+                  - generic [ref=e244]:
+                    - generic:
+                      - generic: Learn more
+          - listitem [ref=e245]:
+            - link "Google Play Pass Get discovered and earn recurring revenue from Play Pass users. Learn more" [ref=e246] [cursor=pointer]:
+              - /url: https://play.google.com/console/about/programs/googleplaypass/
+              - generic [ref=e247]:
+                - img [ref=e249]
+                - generic [ref=e250]:
+                  - paragraph [ref=e251]:
+                    - generic [ref=e252]: Google Play Pass
+                  - paragraph [ref=e253]:
+                    - generic [ref=e254]: Get discovered and earn recurring revenue from Play Pass users.
+                  - generic [ref=e255]:
+                    - generic:
+                      - generic: Learn more
+          - listitem [ref=e256]:
+            - link "Google Play Games Level Up The new Level Up program connects great gaming experiences to greater business success. Learn more" [ref=e257] [cursor=pointer]:
+              - /url: https://play.google.com/console/about/levelup/
+              - generic [ref=e258]:
+                - img [ref=e260]
+                - generic [ref=e261]:
+                  - paragraph [ref=e262]:
+                    - generic [ref=e263]: Google Play Games Level Up
+                  - paragraph [ref=e264]:
+                    - generic [ref=e265]: The new Level Up program connects great gaming experiences to greater business success.
+                  - generic [ref=e266]:
+                    - generic:
+                      - generic: Learn more
+        - list [ref=e269]:
+          - listitem [ref=e270]:
+            - link "Google Play Academy Online training for new and seasoned app and game developers. Find courses" [ref=e271] [cursor=pointer]:
+              - /url: https://playacademy.withgoogle.com/
+              - generic [ref=e272]:
+                - img [ref=e274]
+                - generic [ref=e275]:
+                  - paragraph [ref=e276]:
+                    - generic [ref=e277]: Google Play Academy
+                  - paragraph [ref=e278]:
+                    - generic [ref=e279]: Online training for new and seasoned app and game developers.
+                  - generic [ref=e280]:
+                    - generic:
+                      - generic: Find courses
+          - listitem [ref=e281]:
+            - link "Programs and initiatives See stories of real businesses thriving on Google Play. View all" [ref=e282] [cursor=pointer]:
+              - /url: https://play.google.com/console/about/communityspotlight/
+              - generic [ref=e283]:
+                - img [ref=e285]
+                - generic [ref=e286]:
+                  - paragraph [ref=e287]:
+                    - generic [ref=e288]: Programs and initiatives
+                  - paragraph [ref=e289]:
+                    - generic [ref=e290]: See stories of real businesses thriving on Google Play.
+                  - generic [ref=e291]:
+                    - generic:
+                      - generic: View all
+      - generic [ref=e297]:
+        - heading "Get support in the Help Center" [level=3] [ref=e298]
+        - link "Copy link to this section" [ref=e300] [cursor=pointer]:
+          - /url: "#get-support-in-the-help-center"
+          - img [ref=e301]
+      - list [ref=e306]:
+        - listitem [ref=e307]:
+          - link "icon-help-center-guides View all Help Center guides" [ref=e308] [cursor=pointer]:
+            - /url: https://support.google.com/googleplay/android-developer?sjid=1986974963911544682-NA#topic=3450769
+            - generic [ref=e309]:
+              - img "icon-help-center-guides" [ref=e312]
+              - paragraph [ref=e315]:
+                - generic [ref=e316]: View all Help Center guides
+        - listitem [ref=e317]:
+          - link "icon-community-forums Get answers from community forums" [ref=e318] [cursor=pointer]:
+            - /url: https://support.google.com/googleplay/android-developer/community?hl=en&sjid=1986974963911544682-NA
+            - generic [ref=e319]:
+              - img "icon-community-forums" [ref=e322]
+              - paragraph [ref=e325]:
+                - generic [ref=e326]: Get answers from community forums
+        - listitem [ref=e327]:
+          - link "help-icon Ask us directly for help" [ref=e328] [cursor=pointer]:
+            - /url: https://support.google.com/googleplay/android-developer/gethelp?sjid=1986974963911544682-NA
+            - generic [ref=e329]:
+              - img "help-icon" [ref=e332]
+              - paragraph [ref=e335]:
+                - generic [ref=e336]: Ask us directly for help
+      - generic [ref=e345]:
+        - heading "Sign up for Google Play developer updates" [level=2] [ref=e347]
+        - link "Sign up" [ref=e349] [cursor=pointer]:
+          - /url: https://play.google.com/console/about/newsletter/
+  - contentinfo [ref=e351]:
+    - heading "Footer links" [level=2] [ref=e352]
+    - generic [ref=e354]:
+      - paragraph [ref=e355]: Social Module
+      - generic [ref=e357]:
+        - paragraph [ref=e358]: Connect with us
+        - list [ref=e359]:
+          - listitem [ref=e360]:
+            - link "Follow us on X external link" [ref=e361] [cursor=pointer]:
+              - /url: https://x.com/GooglePlayBiz
+              - img [ref=e362]
+          - listitem [ref=e364]:
+            - link "Follow us on LinkedIn external link" [ref=e365] [cursor=pointer]:
+              - /url: https://www.linkedin.com/showcase/googleplaybiz/
+              - img [ref=e366]
+          - listitem [ref=e368]:
+            - link "Follow us on Youtube external link" [ref=e369] [cursor=pointer]:
+              - /url: https://www.youtube.com/user/androiddevelopers
+              - img [ref=e370]
+    - navigation [ref=e372]:
+      - generic [ref=e373]:
+        - generic [ref=e374]:
+          - heading "Tools" [level=3] [ref=e375]:
+            - generic [ref=e376]: Tools
+          - list [ref=e378]:
+            - listitem [ref=e379]:
+              - link "Console link opens in new tab or window" [ref=e380] [cursor=pointer]:
+                - /url: https://admin.google.com/ServiceNotAllowed?service=androiddeveloper&continue=https://play.google.com/console/
+                - text: Console
+            - listitem [ref=e381]:
+              - link "APIs link opens in new tab or window" [ref=e382] [cursor=pointer]:
+                - /url: https://developer.android.com/google/play/developer-api
+                - text: APIs
+        - generic [ref=e383]:
+          - heading "Learning & community resources" [level=3] [ref=e384]:
+            - generic [ref=e385]: Learning & community resources
+          - list [ref=e387]:
+            - listitem [ref=e388]:
+              - link "Guides link opens in same tab or window" [ref=e389] [cursor=pointer]:
+                - /url: https://play.google.com/console/about/guides/
+                - text: Guides
+            - listitem [ref=e390]:
+              - link "Case Studies link opens in same tab or window" [ref=e391] [cursor=pointer]:
+                - /url: https://play.google.com/console/about/communityspotlight/
+                - text: Case Studies
+            - listitem [ref=e392]:
+              - link "#WeArePlay link opens in same tab or window" [ref=e393] [cursor=pointer]:
+                - /url: https://play.google.com/console/about/weareplay/
+                - text: "#WeArePlay"
+            - listitem [ref=e394]:
+              - link "Programs link opens in same tab or window" [ref=e395] [cursor=pointer]:
+                - /url: https://play.google.com/console/about/programs/
+                - text: Programs
+            - listitem [ref=e396]:
+              - link "Blog link opens in new tab or window" [ref=e397] [cursor=pointer]:
+                - /url: https://android-developers.googleblog.com/search/label/Google%20Play
+                - text: Blog
+            - listitem [ref=e398]:
+              - link "Apps, Games, & Insights Podcast link opens in new tab or window" [ref=e399] [cursor=pointer]:
+                - /url: https://developer.android.com/podcasts/apps-games-insights
+                - text: Apps, Games, & Insights Podcast
+            - listitem [ref=e400]:
+              - link "Google Play Help link opens in new tab or window" [ref=e401] [cursor=pointer]:
+                - /url: https://support.google.com/googleplay/android-developer#topic=3450769
+                - text: Google Play Help
+    - generic [ref=e402]:
+      - link "google" [ref=e404] [cursor=pointer]:
+        - /url: https://www.google.com/
+        - img "google" [ref=e405]
+      - list [ref=e406]:
+        - listitem [ref=e407]:
+          - link "About Google link opens in new tab or window" [ref=e408] [cursor=pointer]:
+            - /url: https://about.google/
+            - text: About Google
+        - listitem [ref=e409]:
+          - link "Google products link opens in new tab or window" [ref=e410] [cursor=pointer]:
+            - /url: https://about.google/products/
+            - text: Google products
+        - listitem [ref=e411]:
+          - link "Privacy link opens in new tab or window" [ref=e412] [cursor=pointer]:
+            - /url: https://policies.google.com/privacy
+            - text: Privacy
+        - listitem [ref=e413]:
+          - link "Terms link opens in new tab or window" [ref=e414] [cursor=pointer]:
+            - /url: https://policies.google.com/terms
+            - text: Terms
+        - listitem [ref=e415]
+      - link "Help" [ref=e416] [cursor=pointer]:
+        - /url: https://support.google.com/?hl=en
+        - img [ref=e417]
+        - text: Help

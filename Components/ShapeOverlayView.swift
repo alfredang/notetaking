@@ -40,6 +40,10 @@ final class ShapeOverlayView: UIView {
     var recolorSelectedInk: (RGBAColor) -> Void = { _ in }
     var deleteSelectedInk: () -> Void = {}
     var clearInkSelection: () -> Void = {}
+    /// Serializes / restores the page's handwriting so ink lasso edits (move /
+    /// recolor / delete) join the shared undo timeline alongside shape edits.
+    var snapshotInk: () -> Data? = { nil }
+    var restoreInk: (Data) -> Void = { _ in }
 
     /// Currently selected overlay items. A single id → resize handles + move;
     /// several (via lasso) → group move / delete / recolor.
@@ -47,6 +51,9 @@ final class ShapeOverlayView: UIView {
     /// The lone selected item's id when exactly one is selected (handles, resize,
     /// tap-to-edit). Nil for an empty or multi-selection.
     private var singleSelectedID: UUID? { selectedIDs.count == 1 ? selectedIDs.first : nil }
+    /// Whether anything is selected — vector shapes and/or a handwriting (ink)
+    /// group. Drives the toolbar's delete/recolor enablement.
+    var hasAnySelection: Bool { !selectedIDs.isEmpty || inkSelectionRect != nil }
 
     /// Undo manager shared with this page's PencilKit canvas, so shape edits and
     /// handwriting interleave on one timeline (set by `PageContainerView`).
@@ -54,6 +61,9 @@ final class ShapeOverlayView: UIView {
     /// `items` snapshot captured at the start of a gesture (move / resize / erase
     /// / text edit), registered as a single undo step when the gesture commits.
     private var gestureUndoSnapshot: [CanvasItem]?
+    /// Handwriting snapshot captured alongside `gestureUndoSnapshot` when a move
+    /// includes selected ink, so the move undoes both layers together.
+    private var gestureInkSnapshot: Data?
     /// Per-item geometry captured at the start of a group move.
     private var moveOriginals: [UUID: CanvasItem] = [:]
     /// `items` snapshot captured when inline text editing begins, so the whole
@@ -68,7 +78,7 @@ final class ShapeOverlayView: UIView {
     // Interaction state
     private var draft: CanvasItem?
     private var dragStart: CGPoint = .zero
-    private enum DragMode { case none, create, move, moveInk, resize(handle: Int), lasso, erase }
+    private enum DragMode { case none, create, move, resize(handle: Int), lasso, erase }
     private var dragMode: DragMode = .none
     private var movingItemOriginalFrame: CGRect = .zero
     private var lassoPoints: [CGPoint] = []
@@ -141,11 +151,12 @@ final class ShapeOverlayView: UIView {
         let isFinger = (event?.allTouches?.first?.type ?? .pencil) != .pencil
         switch tool {
         case .selection:
-            // Intercept everything in selection mode: taps on shapes/handles and
-            // empty-space lasso loops (which now select handwriting ink in the
-            // overlay so we can show our own recolor / move / delete menu). Page
-            // scroll is disabled in selection mode, and two-finger pinch-zoom still
-            // works via the scroll view's own gesture recognizer.
+            // The Pencil selects / moves / draws the lasso loop (and can select
+            // handwriting ink so we show our own recolor / move / delete menu). A
+            // finger falls through so one finger scrolls the page and two fingers
+            // pinch-zoom — matching draw mode. With finger drawing on, the finger
+            // selects instead (panning then needs two fingers).
+            if isFinger && !allowsFingerDrawing { return false }
             return true
         case .shape, .flowchart:
             if isFinger && !allowsFingerDrawing { return false }
@@ -160,15 +171,24 @@ final class ShapeOverlayView: UIView {
         }
     }
 
-    /// Recolors every selected item's stroke (and fill if it has one).
+    /// Recolors every selected item's stroke (and fill if it has one), plus any
+    /// selected handwriting ink — one undo step for the whole mixed selection.
     func setSelectedColor(_ color: RGBAColor) {
-        guard !selectedIDs.isEmpty else { return }
-        let before = items
-        for i in items.indices where selectedIDs.contains(items[i].id) {
-            items[i].strokeColor = color
-            if items[i].fillColor.alpha > 0 { items[i].fillColor = color }
+        let hasShapes = !selectedIDs.isEmpty
+        let hasInk = inkSelectionRect != nil
+        guard hasShapes || hasInk else { return }
+        let beforeItems = items
+        let beforeInk = hasInk ? snapshotInk() : nil
+        if hasShapes {
+            for i in items.indices where selectedIDs.contains(items[i].id) {
+                items[i].strokeColor = color
+                if items[i].fillColor.alpha > 0 { items[i].fillColor = color }
+            }
         }
-        commitChange(from: before)
+        if hasInk { recolorSelectedInk(color) }
+        registerSelectionUndo(items: beforeItems, ink: beforeInk)
+        onChange(items)
+        setNeedsDisplay()
     }
 
     /// Sets the background (fill) of the selected labelled items and picks a
@@ -209,6 +229,24 @@ final class ShapeOverlayView: UIView {
             target.onChange(target.items)
             target.setNeedsDisplay()
             target.registerUndo(previous: redoSnapshot)
+        }
+    }
+
+    /// Registers a combined undo that restores both layers — vector `items` and
+    /// the handwriting `ink` (when supplied) — for mixed-selection edits
+    /// (delete / recolor / group move). Re-registers its mirror as a redo.
+    private func registerSelectionUndo(items beforeItems: [CanvasItem], ink beforeInk: Data?) {
+        guard let um = shapeUndoManager else { return }
+        um.registerUndo(withTarget: self) { target in
+            let redoItems = target.items
+            let redoInk = target.snapshotInk()
+            target.items = beforeItems
+            if let beforeInk { target.restoreInk(beforeInk) }
+            target.selectedIDs.removeAll()
+            target.inkSelectionRect = nil
+            target.onChange(target.items)
+            target.setNeedsDisplay()
+            target.registerSelectionUndo(items: redoItems, ink: redoInk)
         }
     }
 
@@ -336,12 +374,14 @@ final class ShapeOverlayView: UIView {
             updateDraft(to: point)
         case .move:
             didMove = true
+            // Shapes translate from their captured originals (absolute delta);
+            // selected ink translates incrementally — both move as one group.
             moveSelected(by: CGPoint(x: point.x - dragStart.x, y: point.y - dragStart.y))
-        case .moveInk:
-            didMove = true
-            let d = CGSize(width: point.x - lastDragPoint.x, height: point.y - lastDragPoint.y)
-            moveSelectedInk(d)
-            inkSelectionRect = inkSelectionRect?.offsetBy(dx: d.width, dy: d.height)
+            if inkSelectionRect != nil {
+                let d = CGSize(width: point.x - lastDragPoint.x, height: point.y - lastDragPoint.y)
+                moveSelectedInk(d)
+                inkSelectionRect = inkSelectionRect?.offsetBy(dx: d.width, dy: d.height)
+            }
             lastDragPoint = point
         case .resize(let handle):
             didMove = true
@@ -360,13 +400,21 @@ final class ShapeOverlayView: UIView {
         switch dragMode {
         case .create:
             commitDraft()
-        case .move, .resize:
+        case .resize:
             rerouteConnectors()
             if didMove, let before = gestureUndoSnapshot { registerUndo(previous: before) }
             onChange(items)
             moveOriginals = [:]
             gestureUndoSnapshot = nil
-            // A tap (no drag) on a single item: labelled items open their text
+        case .move:
+            rerouteConnectors()
+            // One undo step restores both layers (shapes + ink) for a group move.
+            if didMove { registerSelectionUndo(items: gestureUndoSnapshot ?? items, ink: gestureInkSnapshot) }
+            onChange(items)
+            moveOriginals = [:]
+            gestureUndoSnapshot = nil
+            gestureInkSnapshot = nil
+            // A tap (no drag) on a single shape: labelled items open their text
             // editor; other shapes show the edit menu (delete / color / duplicate).
             if !didMove, let id = singleSelectedID, let sel = items.first(where: { $0.id == id }) {
                 if sel.kind.hasLabel {
@@ -375,8 +423,6 @@ final class ShapeOverlayView: UIView {
                     presentEditMenu(at: CGPoint(x: sel.frame.midX, y: sel.frame.minY - 8))
                 }
             }
-        case .moveInk:
-            break   // strokes were moved + persisted live via the ink bridge
         case .lasso:
             finishLasso()
         case .erase:
@@ -570,8 +616,9 @@ final class ShapeOverlayView: UIView {
     // MARK: - Selection
 
     private func beginSelectionTouch(at point: CGPoint) {
-        // Resize handle of a single selected item?
-        if let id = singleSelectedID, let selected = items.first(where: { $0.id == id }) {
+        // Resize handle of a single selected shape (only when no ink is in the mix)?
+        if let id = singleSelectedID, inkSelectionRect == nil,
+           let selected = items.first(where: { $0.id == id }) {
             for (i, handle) in handleRects(for: selected).enumerated() where handle.contains(point) {
                 dragMode = .resize(handle: i)
                 movingItemOriginalFrame = selected.frame
@@ -579,31 +626,38 @@ final class ShapeOverlayView: UIView {
                 return
             }
         }
-        // Inside an existing ink selection? Drag to move the selected strokes.
-        if let rect = inkSelectionRect, rect.insetBy(dx: -8, dy: -8).contains(point) {
-            dragMode = .moveInk
-            lastDragPoint = point
+        // Tapping anywhere within the current selection — a selected shape or
+        // inside the ink box — drags the whole selection (shapes + handwriting).
+        let onSelectedShape = items.contains { selectedIDs.contains($0.id) && hitTest($0, point: point) }
+        let onInkSelection = inkSelectionRect?.insetBy(dx: -8, dy: -8).contains(point) ?? false
+        if hasAnySelection, onSelectedShape || onInkSelection {
+            beginSelectionMove(at: point)
             return
         }
-        // Hit-test items top-down. Tapping a member of a multi-selection keeps the
-        // group (drag moves them all); tapping elsewhere selects just that item.
+        // Otherwise: tapping an unselected shape selects & moves just it; empty
+        // space starts a lasso loop (selecting shapes and/or handwriting ink).
         if let hit = items.last(where: { hitTest($0, point: point) }) {
             clearInkSelectionState()
-            if !selectedIDs.contains(hit.id) { selectedIDs = [hit.id] }
-            moveOriginals = Dictionary(uniqueKeysWithValues:
-                items.filter { selectedIDs.contains($0.id) }.map { ($0.id, $0) })
-            movingItemOriginalFrame = hit.frame
-            gestureUndoSnapshot = items
-            dragMode = .move
+            selectedIDs = [hit.id]
+            beginSelectionMove(at: point)
         } else {
-            // Empty space: begin a lasso loop (selects shapes, or failing that the
-            // handwriting strokes it encloses).
             selectedIDs.removeAll()
             clearInkSelectionState()
             lassoPoints = [point]
             dragMode = .lasso
         }
         setNeedsDisplay()
+    }
+
+    /// Begins dragging the current selection (any mix of shapes + ink), capturing
+    /// the snapshots needed for a single combined undo step.
+    private func beginSelectionMove(at point: CGPoint) {
+        moveOriginals = Dictionary(uniqueKeysWithValues:
+            items.filter { selectedIDs.contains($0.id) }.map { ($0.id, $0) })
+        lastDragPoint = point
+        gestureUndoSnapshot = items
+        gestureInkSnapshot = (inkSelectionRect != nil) ? snapshotInk() : nil
+        dragMode = .move
     }
 
     /// Drops any active handwriting (ink) lasso selection.
@@ -618,22 +672,17 @@ final class ShapeOverlayView: UIView {
         defer { lassoPoints = [] }
         guard lassoPoints.count > 2 else { return }
         let poly = lassoPoints
-        // Select every enclosed shape (works for overlapping shapes); otherwise
-        // fall back to selecting the handwriting ink the loop encloses.
+        // Select every enclosed shape AND the handwriting ink the loop encloses,
+        // so one lasso can grab a mix of both types (and overlapping shapes).
         let hits = items.filter { enclosed($0, in: poly) }
-        if !hits.isEmpty {
-            selectedIDs = Set(hits.map { $0.id })
-            let box = hits.reduce(CGRect.null) { $0.union(itemBounds($1)) }
-            setNeedsDisplay()
-            presentEditMenu(at: CGPoint(x: box.midX, y: box.minY - 8))
-            return
-        }
-        selectedIDs.removeAll()
-        if let rect = selectInk(poly) {
-            inkSelectionRect = rect
-            setNeedsDisplay()
-            presentEditMenu(at: CGPoint(x: rect.midX, y: rect.minY - 8))
-        }
+        selectedIDs = Set(hits.map { $0.id })
+        let inkRect = selectInk(poly)        // also sets/clears the ink stroke selection
+        inkSelectionRect = inkRect
+        guard !hits.isEmpty || inkRect != nil else { return }
+        var box = hits.reduce(CGRect.null) { $0.union(itemBounds($1)) }
+        if let inkRect { box = box.union(inkRect) }
+        setNeedsDisplay()
+        presentEditMenu(at: CGPoint(x: box.midX, y: box.minY - 8))
     }
 
     private func enclosed(_ item: CanvasItem, in polygon: [CGPoint]) -> Bool {
@@ -716,15 +765,26 @@ final class ShapeOverlayView: UIView {
     // MARK: - Public selection actions
 
     func deleteSelected() {
-        guard !selectedIDs.isEmpty else { return }
-        let before = items
-        let ids = selectedIDs
-        // Remove the selected items plus any connector bound to one of them.
-        items.removeAll { ids.contains($0.id)
-            || ($0.sourceItemID.map(ids.contains) ?? false)
-            || ($0.targetItemID.map(ids.contains) ?? false) }
+        let hasShapes = !selectedIDs.isEmpty
+        let hasInk = inkSelectionRect != nil
+        guard hasShapes || hasInk else { return }
+        let beforeItems = items
+        let beforeInk = hasInk ? snapshotInk() : nil
+        if hasShapes {
+            let ids = selectedIDs
+            // Remove the selected items plus any connector bound to one of them.
+            items.removeAll { ids.contains($0.id)
+                || ($0.sourceItemID.map(ids.contains) ?? false)
+                || ($0.targetItemID.map(ids.contains) ?? false) }
+        }
+        if hasInk {
+            deleteSelectedInk()
+            clearInkSelectionState()
+        }
         selectedIDs.removeAll()
-        commitChange(from: before)
+        registerSelectionUndo(items: beforeItems, ink: beforeInk)
+        onChange(items)
+        setNeedsDisplay()
     }
 
     func duplicateSelected() {
@@ -818,48 +878,21 @@ extension ShapeOverlayView: UIEditMenuInteractionDelegate {
     func editMenuInteraction(_ interaction: UIEditMenuInteraction,
                              menuFor configuration: UIEditMenuConfiguration,
                              suggestedActions: [UIMenuElement]) -> UIMenu? {
-        // Handwriting (ink) selection: recolor or delete the lasso group.
-        if selectedIDs.isEmpty, inkSelectionRect != nil {
-            let colorActions = ToolDefaults.extendedPalette.map { color in
-                UIAction(title: "", image: ShapeOverlayView.swatch(color.uiColor)) { [weak self] _ in
-                    self?.recolorSelectedInk(color)
-                    self?.clearInkSelectionState()
-                    self?.setNeedsDisplay()
-                }
-            }
-            // Inline + .small lays the swatches out as a grid, like the toolbar's
-            // color dropdown.
-            let palette = UIMenu(options: .displayInline, children: colorActions)
-            palette.preferredElementSize = .small
-            let custom = UIAction(title: "Custom…", image: UIImage(systemName: "eyedropper")) { [weak self] _ in
-                self?.presentCustomColorPicker(current: .black) { [weak self] c in
-                    self?.recolorSelectedInk(c)
-                }
-            }
-            let delete = UIAction(title: "Delete", image: UIImage(systemName: "trash"),
-                                  attributes: .destructive) { [weak self] _ in
-                self?.deleteSelectedInk()
-                self?.clearInkSelectionState()
-                self?.setNeedsDisplay()
-            }
-            return UIMenu(children: [delete, palette, custom])
-        }
+        // One unified menu for any selection — vector shapes, handwriting ink, or
+        // a mix of both. Delete and color apply across every selected element.
+        let hasShapes = !selectedIDs.isEmpty
+        let hasInk = inkSelectionRect != nil
+        guard hasShapes || hasInk else { return nil }
 
-        guard !selectedIDs.isEmpty else { return nil }
-
-        // A single sticky note / flowchart node recolors its *background* (fill)
-        // with a readable text color; plain shapes (and multi-selections) recolor
-        // their stroke/outline.
-        let labelled = singleSelectedID
-            .flatMap { id in items.first { $0.id == id }?.kind.hasLabel } ?? false
+        // A lone sticky note / flowchart node recolors its *background* (fill) with
+        // a readable text color; everything else (plain shapes, multi-selections,
+        // ink) recolors stroke/ink.
+        let labelled = !hasInk && (singleSelectedID
+            .flatMap { id in items.first { $0.id == id }?.kind.hasLabel } ?? false)
         let apply: (RGBAColor) -> Void = labelled
             ? { [weak self] c in self?.setSelectedFill(c) }
             : { [weak self] c in self?.setSelectedColor(c) }
 
-        let duplicate = UIAction(title: "Duplicate",
-                                 image: UIImage(systemName: "plus.square.on.square")) { [weak self] _ in
-            self?.duplicateSelected()
-        }
         let colorActions = ToolDefaults.extendedPalette.map { color in
             UIAction(title: "", image: ShapeOverlayView.swatch(color.uiColor)) { _ in
                 apply(color)
@@ -877,7 +910,17 @@ extension ShapeOverlayView: UIEditMenuInteractionDelegate {
                               attributes: .destructive) { [weak self] _ in
             self?.deleteSelected()
         }
-        return UIMenu(children: [delete, duplicate, palette, custom])
+        var children: [UIMenuElement] = [delete]
+        // Duplicate only applies to vector shapes (ink duplication isn't supported).
+        if hasShapes {
+            let duplicate = UIAction(title: "Duplicate",
+                                     image: UIImage(systemName: "plus.square.on.square")) { [weak self] _ in
+                self?.duplicateSelected()
+            }
+            children.append(duplicate)
+        }
+        children.append(contentsOf: [palette, custom])
+        return UIMenu(children: children)
     }
 
     /// A small filled-circle image used as a color menu swatch (with a hairline
