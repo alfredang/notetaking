@@ -7,10 +7,7 @@ import AVFoundation
 enum PageRenderer {
     /// The fill color for a paper template (white paper vs. dark blackboard).
     static func surfaceColor(for style: PaperStyle) -> UIColor {
-        switch style {
-        case .white: .white
-        case .blackboard: UIColor(red: 0.09, green: 0.16, blue: 0.13, alpha: 1)
-        }
+        PaperPattern.surfaceColor(for: style)
     }
 
     /// Renders the page at the full A4 point size, scaled by `scale`. When
@@ -23,6 +20,13 @@ enum PageRenderer {
         return renderer.image { ctx in
             (background ?? surfaceColor(for: page.paperStyle)).setFill()
             ctx.fill(CGRect(origin: .zero, size: size))
+
+            // Ruled / gridded / dotted template pattern, when no override fill.
+            if background == nil {
+                PaperPattern.drawPattern(for: page.paperStyle,
+                                         in: CGRect(origin: .zero, size: size),
+                                         context: ctx.cgContext)
+            }
 
             // Imported background (e.g. a PDF page) sits beneath everything,
             // aspect-fit to match the on-screen image view.

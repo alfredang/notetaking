@@ -6,37 +6,95 @@ import CoreGraphics
 enum ShapeKind: String, Codable, CaseIterable, Sendable {
     // Plain shapes
     case rectangle
+    case roundedRectangle
     case circle
     case triangle
+    case rightTriangle
     case diamond
+    case pentagon
+    case hexagon
+    case star
+    case parallelogram
+    case trapezoid
     case line
     case arrow
+    case doubleArrow
     // Flowchart nodes
-    case process        // rounded rectangle
-    case decision       // diamond with text
-    case startEnd       // capsule (terminator)
-    // Flowchart connector
+    case process            // rounded rectangle
+    case decision           // diamond with text
+    case startEnd           // capsule (terminator)
+    case data               // parallelogram (input/output)
+    case document           // rectangle with a wavy bottom edge
+    case predefinedProcess  // rectangle with double side bars
+    case database           // cylinder
+    case manualInput        // quadrilateral with a slanted top edge
+    case preparation        // elongated (pointed) hexagon
+    case manualOperation    // inverted trapezoid
+    case connectorNode      // small circle (on-page connector)
+    case card               // rectangle with a cut top-left corner
+    case offPageConnector   // home-plate pentagon
+    // Flowchart connector (flow line)
     case connector
     // Sticky note (filled card with text)
     case stickyNote
 
+    /// Plain shapes shown in the Shapes palette (in display order).
+    static let plainShapes: [ShapeKind] = [
+        .rectangle, .roundedRectangle, .circle, .triangle,
+        .rightTriangle, .diamond, .pentagon, .hexagon,
+        .star, .parallelogram, .trapezoid, .line,
+        .arrow, .doubleArrow
+    ]
+
+    /// Flowchart components shown in the Flowchart palette (in display order).
+    static let flowchartShapes: [ShapeKind] = [
+        .process, .decision, .startEnd, .data,
+        .document, .predefinedProcess, .database, .manualInput,
+        .preparation, .manualOperation, .connectorNode, .card,
+        .offPageConnector, .connector
+    ]
+
     var isNode: Bool {
         switch self {
-        case .process, .decision, .startEnd: true
-        default: false
+        case .process, .decision, .startEnd, .data, .document, .predefinedProcess,
+             .database, .manualInput, .preparation, .manualOperation, .connectorNode,
+             .card, .offPageConnector:
+            true
+        default:
+            false
         }
     }
 
     var isConnector: Bool { self == .connector }
 
     /// Items that render an editable text label (flowchart nodes + sticky notes).
-    var hasLabel: Bool { isNode || self == .stickyNote }
+    /// The tiny on-page connector circle is unlabelled.
+    var hasLabel: Bool { (isNode && self != .connectorNode) || self == .stickyNote }
 
     /// Line-like shapes are defined by two endpoints rather than a rect.
     var isLineLike: Bool {
         switch self {
-        case .line, .arrow, .connector: true
+        case .line, .arrow, .doubleArrow, .connector: true
         default: false
+        }
+    }
+
+    /// Placeholder label dropped into a freshly created labelled item.
+    var defaultLabel: String {
+        switch self {
+        case .process, .predefinedProcess: "Process"
+        case .decision: "Decision"
+        case .startEnd: "Start"
+        case .data: "Data"
+        case .document: "Document"
+        case .database: "Database"
+        case .manualInput: "Input"
+        case .preparation: "Prepare"
+        case .manualOperation: "Operation"
+        case .offPageConnector: "Ref"
+        case .card: "Card"
+        case .stickyNote: "Note"
+        default: ""
         }
     }
 }

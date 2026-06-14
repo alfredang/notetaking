@@ -13,6 +13,14 @@ final class StrokeCanvasView: PKCanvasView {
     /// (often asynchronously), so the delegate uses this to avoid stamping the
     /// page's `updatedAt` for a load. It is cleared the moment a real stroke begins.
     var loadingDrawing = false
+
+    /// True between `canvasViewDidBeginUsingTool` and `…DidEndUsingTool`, i.e.
+    /// while a stroke is actively being drawn.
+    var isDrawingStroke = false
+
+    /// Set when the user holds still at the end of a stroke; the next committed
+    /// stroke is straightened into a clean line (see `StrokeStraightener`).
+    var straightenArmed = false
 }
 
 /// A single A4 page: white rounded card hosting a PencilKit canvas with a
@@ -22,6 +30,7 @@ final class PageContainerView: UIView {
     let canvas: PKCanvasView
     let overlay: ShapeOverlayView
     private let contentView = UIView()
+    private let paperBackground = PaperBackgroundView()
     private let backgroundImageView = UIImageView()
     private let footerLabel = UILabel()
 
@@ -44,13 +53,19 @@ final class PageContainerView: UIView {
         layer.shadowRadius = 10
         layer.shadowOffset = CGSize(width: 0, height: 4)
 
-        // Paper surface (white paper or dark blackboard).
-        contentView.backgroundColor = PageContainerView.surfaceColor(for: page.paperStyle)
+        // Paper surface — clear; the templated paper background paints below.
+        contentView.backgroundColor = .clear
         contentView.layer.cornerRadius = Theme.pageCornerRadius
         contentView.clipsToBounds = true
         contentView.frame = bounds
         contentView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         addSubview(contentView)
+
+        // Templated paper surface (solid color + grid / dotted / lined pattern).
+        paperBackground.style = page.paperStyle
+        paperBackground.frame = contentView.bounds
+        paperBackground.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        contentView.addSubview(paperBackground)
 
         // Imported page background (e.g. a PDF page) below the ink.
         backgroundImageView.contentMode = .scaleAspectFit
@@ -119,7 +134,7 @@ final class PageContainerView: UIView {
         }
         overlay.items = page.items
         backgroundImageView.image = page.backgroundData.isEmpty ? nil : UIImage(data: page.backgroundData)
-        contentView.backgroundColor = PageContainerView.surfaceColor(for: page.paperStyle)
+        paperBackground.style = page.paperStyle
         updateFooter()
     }
 
@@ -206,11 +221,4 @@ final class PageContainerView: UIView {
         return inside
     }
 
-    /// The fill color for a given paper template.
-    static func surfaceColor(for style: PaperStyle) -> UIColor {
-        switch style {
-        case .white: .white
-        case .blackboard: UIColor(red: 0.09, green: 0.16, blue: 0.13, alpha: 1) // chalkboard green-black
-        }
-    }
 }

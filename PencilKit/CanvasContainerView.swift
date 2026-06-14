@@ -99,7 +99,8 @@ struct CanvasContainerView: UIViewRepresentable {
     // MARK: - Coordinator
 
     @MainActor
-    final class Coordinator: NSObject, UIScrollViewDelegate, PKCanvasViewDelegate, UIPencilInteractionDelegate {
+    final class Coordinator: NSObject, UIScrollViewDelegate, PKCanvasViewDelegate,
+                             UIPencilInteractionDelegate, UIGestureRecognizerDelegate {
         var editor: EditorViewModel
         let autoSave: AutoSaveService
         let controller: CanvasController
@@ -317,6 +318,15 @@ struct CanvasContainerView: UIViewRepresentable {
             ])
             pv.canvas.delegate = self
             pageForCanvas[ObjectIdentifier(pv.canvas)] = page
+
+            // "Draw a line, then hold the end" → snap the stroke straight.
+            let holdStill = HoldStillGestureRecognizer(
+                target: self, action: #selector(handleStraightenHold(_:)))
+            holdStill.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.pencil.rawValue)]
+            holdStill.cancelsTouchesInView = false
+            holdStill.delaysTouchesEnded = false
+            holdStill.delegate = self
+            pv.canvas.addGestureRecognizer(holdStill)
             pv.overlay.makeItem = { [weak self] kind, frame, s, e in
                 self?.editor.makeItem(kind: kind, frame: frame, start: s, end: e)
                     ?? CanvasItem(kind: kind, frame: frame, start: s, end: e)
@@ -475,12 +485,35 @@ struct CanvasContainerView: UIViewRepresentable {
         func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
             // A genuine user edit is starting — make sure a load that never echoed
             // can't suppress this stroke's timestamp update.
-            (canvasView as? StrokeCanvasView)?.loadingDrawing = false
+            if let canvas = canvasView as? StrokeCanvasView {
+                canvas.loadingDrawing = false
+                canvas.isDrawingStroke = true
+                canvas.straightenArmed = false
+            }
             scrollView?.isScrollEnabled = false
         }
 
         func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
+            (canvasView as? StrokeCanvasView)?.isDrawingStroke = false
             applyTool() // restores scrolling appropriately for the current tool
+        }
+
+        // MARK: Hold-to-straighten
+
+        /// Arms straightening when the Pencil holds still at the end of a stroke.
+        @objc func handleStraightenHold(_ gesture: HoldStillGestureRecognizer) {
+            guard gesture.state == .began,
+                  editor.tool.isInking,
+                  let canvas = gesture.view as? StrokeCanvasView,
+                  canvas.isDrawingStroke else { return }
+            canvas.straightenArmed = true
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+
+        /// Let the hold-still recognizer coexist with PencilKit's drawing gesture.
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+            gestureRecognizer is HoldStillGestureRecognizer
         }
 
         func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
@@ -491,6 +524,17 @@ struct CanvasContainerView: UIViewRepresentable {
                 return
             }
             guard let page = pageForCanvas[ObjectIdentifier(canvasView)] else { return }
+
+            // If the user held still at the end of this stroke, snap it straight.
+            if let canvas = canvasView as? StrokeCanvasView, canvas.straightenArmed {
+                canvas.straightenArmed = false
+                if let straightened = StrokeStraightener.straightenLast(in: canvasView.drawing) {
+                    canvas.loadingDrawing = true // ignore the echo from this programmatic set
+                    canvasView.drawing = straightened
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                }
+            }
+
             page.drawingData = canvasView.drawing.dataRepresentation()
             autoSave.scheduleSave(touching: page)   // touches updatedAt synchronously
             pageViews.first { $0.canvas === canvasView }?.updateFooter()

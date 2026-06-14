@@ -8,6 +8,9 @@ struct ToolbarView: View {
     let controller: CanvasController
 
     @State private var showColorPopover = false
+    @State private var showShapePopover = false
+    @State private var showFlowchartPopover = false
+    @State private var showTemplatePopover = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -75,59 +78,56 @@ struct ToolbarView: View {
         }
     }
 
-    // Icon-only palettes (minimalistic): a row of SF Symbols, not text rows.
-    private static let shapeSymbols: [(ShapeKind, String, String)] = [
-        (.rectangle, "rectangle", "Rectangle"), (.circle, "circle", "Circle"),
-        (.triangle, "triangle", "Triangle"), (.diamond, "diamond", "Diamond"),
-        (.line, "line.diagonal", "Line"), (.arrow, "line.diagonal.arrow", "Arrow")
-    ]
-    private static let flowchartSymbols: [(ShapeKind, String, String)] = [
-        (.process, "rectangle", "Process"), (.decision, "diamond", "Decision"),
-        (.startEnd, "capsule", "Start / End"), (.connector, "arrow.left.and.right", "Connector")
-    ]
-
     private var shapeMenu: some View {
-        Menu {
-            Picker("Shape", selection: shapeKindBinding) {
-                ForEach(Self.shapeSymbols, id: \.0) { kind, symbol, name in
-                    Image(systemName: symbol).accessibilityLabel(name).tag(Optional(kind))
-                }
-            }
-            .pickerStyle(.palette)
-            .labelsHidden()
+        Button {
+            showShapePopover = true
         } label: {
             menuLabel("square.on.circle", active: isShapeActive)
         }
+        .buttonStyle(.plain)
         .accessibilityLabel("Shapes")
+        .popover(isPresented: $showShapePopover) {
+            ShapePalettePopover(
+                title: "SHAPES",
+                kinds: ShapeKind.plainShapes,
+                selected: activeShapeKind(for: .shape)
+            ) { kind in
+                editor.tool = .shape(kind)
+                showShapePopover = false
+            }
+            .presentationCompactAdaptation(.popover)
+        }
     }
 
     private var flowchartMenu: some View {
-        Menu {
-            Picker("Flowchart", selection: flowchartKindBinding) {
-                ForEach(Self.flowchartSymbols, id: \.0) { kind, symbol, name in
-                    Image(systemName: symbol).accessibilityLabel(name).tag(Optional(kind))
-                }
-            }
-            .pickerStyle(.palette)
-            .labelsHidden()
+        Button {
+            showFlowchartPopover = true
         } label: {
             menuLabel("flowchart", active: isFlowchartActive)
         }
+        .buttonStyle(.plain)
         .accessibilityLabel("Flowchart")
+        .popover(isPresented: $showFlowchartPopover) {
+            ShapePalettePopover(
+                title: "FLOWCHART",
+                kinds: ShapeKind.flowchartShapes,
+                selected: activeShapeKind(for: .flowchart)
+            ) { kind in
+                editor.tool = .flowchart(kind)
+                showFlowchartPopover = false
+            }
+            .presentationCompactAdaptation(.popover)
+        }
     }
 
-    private var shapeKindBinding: Binding<ShapeKind?> {
-        Binding(
-            get: { if case .shape(let k) = editor.tool, k != .stickyNote { return k }; return nil },
-            set: { if let k = $0 { editor.tool = .shape(k) } }
-        )
-    }
-
-    private var flowchartKindBinding: Binding<ShapeKind?> {
-        Binding(
-            get: { if case .flowchart(let k) = editor.tool { return k }; return nil },
-            set: { if let k = $0 { editor.tool = .flowchart(k) } }
-        )
+    /// The kind currently selected for a given overlay family (.shape / .flowchart).
+    private enum ToolFamily { case shape, flowchart }
+    private func activeShapeKind(for family: ToolFamily) -> ShapeKind? {
+        switch (family, editor.tool) {
+        case (.shape, .shape(let k)) where k != .stickyNote: return k
+        case (.flowchart, .flowchart(let k)): return k
+        default: return nil
+        }
     }
 
     private func menuLabel(_ systemImage: String, active: Bool) -> some View {
@@ -224,18 +224,22 @@ struct ToolbarView: View {
 
     private var pageControls: some View {
         HStack(spacing: 4) {
-            Menu {
-                Picker("Template", selection: Binding(
-                    get: { controller.currentPaperStyle() },
-                    set: { controller.setPaperStyle($0) }
-                )) {
-                    Label("White", systemImage: "doc").tag(PaperStyle.white)
-                    Label("Blackboard", systemImage: "rectangle.fill").tag(PaperStyle.blackboard)
-                }
+            Button {
+                showTemplatePopover = true
             } label: {
                 barIcon("square.grid.2x2")
             }
+            .buttonStyle(.plain)
             .accessibilityLabel("Page template")
+            .popover(isPresented: $showTemplatePopover) {
+                TemplatePalettePopover(
+                    current: controller.currentPaperStyle()
+                ) { style in
+                    controller.setPaperStyle(style)
+                    showTemplatePopover = false
+                }
+                .presentationCompactAdaptation(.popover)
+            }
 
             Menu {
                 Button { controller.requestNewPageAbove() } label: {
@@ -334,5 +338,84 @@ private struct ColorPalettePopover: View {
         }
         .padding(16)
         .frame(width: 268)
+    }
+}
+
+/// A titled 4-column grid of shape previews (Shapes / Flowchart palettes).
+private struct ShapePalettePopover: View {
+    let title: String
+    let kinds: [ShapeKind]
+    let selected: ShapeKind?
+    let onPick: (ShapeKind) -> Void
+
+    private let columns = Array(repeating: GridItem(.fixed(56), spacing: 10), count: 4)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title)
+                .font(.caption2.weight(.semibold))
+                .tracking(1.5)
+                .foregroundStyle(.secondary)
+            LazyVGrid(columns: columns, spacing: 10) {
+                ForEach(kinds, id: \.self) { kind in
+                    Button { onPick(kind) } label: {
+                        ShapeGlyph(kind: kind)
+                            .foregroundStyle(selected == kind ? Color.accentColor : Color.primary.opacity(0.7))
+                            .frame(width: 40, height: 40)
+                            .padding(6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(selected == kind ? Color.accentColor.opacity(0.18) : Color.clear)
+                            )
+                            .contentShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
+                    .hoverEffect(.highlight)
+                    .accessibilityLabel(kind.rawValue)
+                }
+            }
+        }
+        .padding(16)
+        .frame(width: 4 * 56 + 2 * 10 + 32)
+    }
+}
+
+/// A titled list of paper templates: swatch + name, with the active one highlighted.
+private struct TemplatePalettePopover: View {
+    let current: PaperStyle
+    let onPick: (PaperStyle) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("TEMPLATE")
+                .font(.caption2.weight(.semibold))
+                .tracking(1.5)
+                .foregroundStyle(.secondary)
+            ForEach(PaperStyle.allCases) { style in
+                Button { onPick(style) } label: {
+                    HStack(spacing: 14) {
+                        PaperSwatch(style: style)
+                        Text(style.displayName)
+                            .font(.body)
+                            .foregroundStyle(current == style ? Color.accentColor : Color.primary)
+                        Spacer(minLength: 8)
+                    }
+                    .padding(8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(current == style ? Color.accentColor : Color.clear, lineWidth: 1.5)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(current == style ? Color.accentColor.opacity(0.12) : Color.clear)
+                            )
+                    )
+                    .contentShape(RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
+                .hoverEffect(.highlight)
+            }
+        }
+        .padding(16)
+        .frame(width: 260)
     }
 }

@@ -6,23 +6,29 @@ import CoreGraphics
 enum PaperStyle: String, CaseIterable, Identifiable, Sendable {
     case white
     case blackboard
+    case grid
+    case dotted
+    case lined
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .white: "White"
+        case .white: "Whiteboard"
         case .blackboard: "Blackboard"
+        case .grid: "Grid"
+        case .dotted: "Dotted"
+        case .lined: "Lined"
         }
     }
 
+    /// Whether the surface is a dark (blackboard) template.
+    var isDark: Bool { self == .blackboard }
+
     /// A sensible default ink color so strokes are visible on this surface
-    /// (dark ink on white paper, white chalk on a blackboard).
+    /// (dark ink on light paper, white chalk on a blackboard).
     var defaultInkColor: RGBAColor {
-        switch self {
-        case .white: .black
-        case .blackboard: RGBAColor(red: 1, green: 1, blue: 1)
-        }
+        isDark ? RGBAColor(red: 1, green: 1, blue: 1) : .black
     }
 }
 

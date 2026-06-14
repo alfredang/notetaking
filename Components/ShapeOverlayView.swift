@@ -72,6 +72,24 @@ final class ShapeOverlayView: UIView {
         let doubleTap = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap(_:)))
         doubleTap.numberOfTapsRequired = 2
         addGestureRecognizer(doubleTap)
+
+        // Press-and-hold any item (notably a sticky note, whose tap opens the text
+        // editor) to bring up the edit menu — change background color / delete.
+        let longPress = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress(_:)))
+        longPress.minimumPressDuration = 0.4
+        addGestureRecognizer(longPress)
+    }
+
+    /// Press-and-hold: select the pressed item and pop up its edit menu.
+    @objc private func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
+        guard gesture.state == .began, tool == .selection, activeTextView == nil else { return }
+        let point = gesture.location(in: self)
+        guard let item = items.last(where: { hitTest($0, point: point) }) else { return }
+        clearInkSelectionState()
+        selectedID = item.id
+        dragMode = .none
+        setNeedsDisplay()
+        presentEditMenu(at: CGPoint(x: item.frame.midX, y: item.frame.minY - 8))
     }
 
     /// Shows a popup (delete / duplicate / change color) next to a selection.
@@ -118,6 +136,19 @@ final class ShapeOverlayView: UIView {
         guard let id = selectedID, let idx = items.firstIndex(where: { $0.id == id }) else { return }
         items[idx].strokeColor = color
         if items[idx].fillColor.alpha > 0 { items[idx].fillColor = color }
+        onChange(items)
+        setNeedsDisplay()
+    }
+
+    /// Sets the background (fill) of the selected labelled item and picks a
+    /// readable text/border color (dark on light fills, light on dark fills).
+    func setSelectedFill(_ color: RGBAColor) {
+        guard let id = selectedID, let idx = items.firstIndex(where: { $0.id == id }) else { return }
+        let lum = 0.299 * color.red + 0.587 * color.green + 0.114 * color.blue
+        items[idx].fillColor = color
+        items[idx].strokeColor = lum > 0.6
+            ? RGBAColor(red: 0.12, green: 0.12, blue: 0.12)
+            : RGBAColor(red: 1, green: 1, blue: 1)
         onChange(items)
         setNeedsDisplay()
     }
@@ -303,9 +334,9 @@ final class ShapeOverlayView: UIView {
                 if let dst = node(near: d.end) { d.targetItemID = dst.id; d.end = anchor(on: dst, toward: d.start) }
             }
         } else if d.frame.width < minimal && d.frame.height < minimal {
-            // A tap (no real drag): drop a default-sized card for labelled items,
-            // otherwise discard the accidental dot.
-            guard d.kind.hasLabel else { draft = nil; return }
+            // A tap (no real drag): drop a default-sized card for flowchart nodes
+            // and labelled items, otherwise discard the accidental dot.
+            guard d.kind.hasLabel || d.kind.isNode else { draft = nil; return }
             let size = defaultSize(for: d.kind)
             d.frame = CGRect(x: dragStart.x, y: dragStart.y, width: size.width, height: size.height)
         }
@@ -327,8 +358,10 @@ final class ShapeOverlayView: UIView {
     private func defaultSize(for kind: ShapeKind) -> CGSize {
         switch kind {
         case .stickyNote: return CGSize(width: 160, height: 160)
-        case .decision: return CGSize(width: 160, height: 100)
-        default: return CGSize(width: 160, height: 64)
+        case .decision, .preparation, .offPageConnector: return CGSize(width: 160, height: 100)
+        case .database, .document, .manualInput, .manualOperation: return CGSize(width: 150, height: 110)
+        case .connectorNode: return CGSize(width: 56, height: 56)
+        default: return CGSize(width: 160, height: 72)
         }
     }
 
@@ -367,7 +400,7 @@ final class ShapeOverlayView: UIView {
         tv.textContainerInset = UIEdgeInsets(top: 8, left: 6, bottom: 8, right: 6)
         tv.autocapitalizationType = .sentences
         tv.isScrollEnabled = true
-        tv.text = (item.text == defaultLabel(for: item.kind)) ? "" : (item.text ?? "")
+        tv.text = (item.text == item.kind.defaultLabel) ? "" : (item.text ?? "")
 
         // Flowchart nodes center their text (matching the rendered node);
         // sticky notes keep top-left.
@@ -434,17 +467,6 @@ final class ShapeOverlayView: UIView {
         bar.items = [colorItem, UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil), done]
         bar.sizeToFit()
         return bar
-    }
-
-    /// Default placeholder text per kind (so it isn't shown as real content).
-    private func defaultLabel(for kind: ShapeKind) -> String {
-        switch kind {
-        case .process: "Process"
-        case .decision: "Decision"
-        case .startEnd: "Start"
-        case .stickyNote: "Note"
-        default: ""
-        }
     }
 
     // MARK: - Selection
@@ -689,25 +711,31 @@ extension ShapeOverlayView: UIEditMenuInteractionDelegate {
             return UIMenu(children: [palette, custom, delete])
         }
 
-        guard selectedID != nil else { return nil }
+        guard let id = selectedID else { return nil }
+
+        // Sticky notes / flowchart nodes recolor their *background* (fill) with a
+        // readable text color; plain shapes recolor their stroke/outline.
+        let labelled = items.first { $0.id == id }?.kind.hasLabel ?? false
+        let apply: (RGBAColor) -> Void = labelled
+            ? { [weak self] c in self?.setSelectedFill(c) }
+            : { [weak self] c in self?.setSelectedColor(c) }
 
         let duplicate = UIAction(title: "Duplicate",
                                  image: UIImage(systemName: "plus.square.on.square")) { [weak self] _ in
             self?.duplicateSelected()
         }
         let colorActions = ToolDefaults.extendedPalette.map { color in
-            UIAction(title: "", image: ShapeOverlayView.swatch(color.uiColor)) { [weak self] _ in
-                self?.setSelectedColor(color)
+            UIAction(title: "", image: ShapeOverlayView.swatch(color.uiColor)) { _ in
+                apply(color)
             }
         }
         // Inline + .small lays the swatches out as a grid, like the toolbar's
         // color dropdown.
-        let palette = UIMenu(options: .displayInline, children: colorActions)
+        let palette = UIMenu(title: labelled ? "Background Color" : "Color",
+                             options: .displayInline, children: colorActions)
         palette.preferredElementSize = .small
         let custom = UIAction(title: "Custom…", image: UIImage(systemName: "eyedropper")) { [weak self] _ in
-            self?.presentCustomColorPicker(current: .black) { [weak self] c in
-                self?.setSelectedColor(c)
-            }
+            self?.presentCustomColorPicker(current: .black) { c in apply(c) }
         }
         let delete = UIAction(title: "Delete", image: UIImage(systemName: "trash"),
                               attributes: .destructive) { [weak self] _ in

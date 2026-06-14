@@ -74,7 +74,7 @@ final class EditorViewModel {
                 fillColor: RGBAColor(red: 1.0, green: 0.90, blue: 0.40),
                 lineWidth: 0,
                 opacity: 1,
-                text: defaultLabel(for: kind)
+                text: kind.defaultLabel
             )
         }
         // Flowchart nodes default to a solid white fill (so labels are readable
@@ -89,17 +89,7 @@ final class EditorViewModel {
             fillColor: fill,
             lineWidth: shapeLineWidth,
             opacity: shapeOpacity,
-            text: kind.hasLabel ? defaultLabel(for: kind) : nil
+            text: kind.hasLabel ? kind.defaultLabel : nil
         )
-    }
-
-    private func defaultLabel(for kind: ShapeKind) -> String {
-        switch kind {
-        case .process: "Process"
-        case .decision: "Decision"
-        case .startEnd: "Start"
-        case .stickyNote: "Note"
-        default: ""
-        }
     }
 }
